@@ -1,0 +1,6 @@
+Debug/
+Release/
+*.png
+*.jpg
+*~
+*.sdf
