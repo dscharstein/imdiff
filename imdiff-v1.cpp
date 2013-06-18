@@ -1,9 +1,9 @@
-/* imdiff.cpp - visual alignment of two images
+/* imdiff-v1.cpp - visual alignment of two images
 *
 * VS version
 * working version as of May 31 2013
 * added github control 6/17/2013
-* added computation on image pyramids 6/18/2013
+* copy of original working version 6/18/2013
 */
 
 // set to 1 if running on cygwin - turns off mouse motion animation, o/w crashes on cygwin
@@ -15,12 +15,10 @@ int cygwinbug = 0;
 using namespace cv;
 using namespace std;
 
-int maxlevels = 4;  // levels in pyramid
-
-Mat im0, im1; // orig images
-vector<Mat> pyr0, pyr1, pyrd; // image pyramids
-
-//Mat imd; // "difference" image
+Mat im0, im1, im0g, im1g, im0gf, im1gf; // orig images, gray, and gray float versions
+Mat gx0, gy0, gx1, gy1, gm0, gm1; // gradients
+Mat im1t, im1tg, im1tgf; // transformed image 1
+Mat imd; // "difference" image
 int mode = 0;
 int nccmode = 0;
 const int nmodes = 4;
@@ -29,6 +27,7 @@ const char *modestr[nmodes] = {
 	"Bleyer", // 0.1 * color diff + 0.9 * gradient diff
 	"NCC   ",
 	"ICPR  "}; // ICPR 94 gradient diff
+//, 	"new gradient diff"};
 
 const char *win = "imdiff";
 float dx = 0;
@@ -77,7 +76,7 @@ void computeGradients(Mat img, Mat &gx, Mat &gy, Mat &gm)
 	magnitude(gx, gy, gm);
 }
 
-void info(Mat imd)
+void info()
 {
 	//rectangle(imd, Point(0, 0), Point(150, 20), Scalar(100, 100, 100), CV_FILLED); // gray rectangle
 	Mat r = imd(Rect(0, imd.rows-18, imd.cols, 18));  // better: darken subregion!
@@ -85,13 +84,14 @@ void info(Mat imd)
 	char txt[100];
 	sprintf_s(txt, 100, "%s dx=%4.1f dy=%4.1f step=%3.1f ncceps=%5g  'h' = help ", 
 		modestr[mode], dx, dy, step, ncceps);
-	putText(imd, txt, Point(5, imd.rows-4), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
+	putText(imd, txt, Point(5, imd.rows-4), FONT_HERSHEY_PLAIN, 0.8, Scalar(255, 255, 255));
 }
 
 void myImDiff2(Mat a, Mat b, Mat &d)
 {
 	d = 128 + a - b;
 }
+
 
 void myImDiff(Mat a, Mat b, Mat &d)
 {
@@ -226,86 +226,6 @@ void ncc2(Mat L, Mat R, Mat &imd) {
 	}
 }
 
-// compute image "difference" according to mode
-void imdiff(Mat im0, Mat im1, Mat &imd)
-{
-	if (mode == 0 || mode >= nmodes) { // difference of images
-		//addWeighted(im0, diffscale, im1, -diffscale, 128, imd);
-		imd = 128 + diffscale * (im0 - im1);
-		return;
-	}
-	Mat im0g, im1g;
-	cvtColor(im0, im0g, CV_BGR2GRAY);  
-	cvtColor(im1, im1g, CV_BGR2GRAY);  
-
-	if (mode == 1) { // Bleyer weighted sum of color and gradient diff
-		Mat cdiff, gx0, gx1, gdiff;
-		absdiff(im0, im1, cdiff);
-		cvtColor(cdiff, cdiff, CV_BGR2GRAY);
-		computeGradientX(im0g, gx0);
-		computeGradientX(im1g, gx1);
-		absdiff(gx0, gx1, gdiff);
-		gdiff.convertTo(imd, CV_8U, 10, 0);
-		float sc = diffscale;
-		addWeighted(cdiff, 0.1*sc, gdiff, 0.9*sc, 0, imd, CV_8U);
-		imd = 255 - imd;
-		//still need to truncate diffs
-	} else if (mode == 2) { // NCC
-		Mat im0gf, im1gf;
-		im0g.convertTo(im0gf, CV_32F);
-		im1g.convertTo(im1gf, CV_32F);
-		if (nccmode == 0)
-			ncc(im0gf, im1gf, imd);
-		else
-			ncc2(im0gf, im1gf, imd);
-	} else if (mode == 3) { // ICPR gradient measure
-		Mat gx0, gy0, gx1, gy1, gm0, gm1; // gradients
-		computeGradients(im0g, gx0, gy0, gm0);
-		computeGradients(im1g, gx1, gy1, gm1);
-		gm1 += gm0; // sum of the gradient magnitudes s
-		gx1 -= gx0; // compute magnitude of difference
-		gy1 -= gy0;
-		Mat gmag;
-		magnitude(gx1, gy1, gmag); // magnitude of difference d
-		addWeighted(gm1, 0.5, gmag, -1, 128, imd, CV_8U); // result is s/2 - d
-	}
-}
-
-
-Mat pyrImg(vector<Mat> pyr) 
-{
-	Mat im = pyr[0];
-	int w = im.cols, h = im.rows;
-	Mat pim(Size(3*w/2+4, h+20), im.type(),Scalar(30, 10, 10));
-	im.copyTo(pim(Rect(0, 0, w, h)));
-
-	int x = w+2;
-	int y = 0;
-	for (int i = 1; i < (int)pyr.size(); i++) {
-		int w1 = pyr[i].cols, h1 = pyr[i].rows;
-		pyr[i].copyTo(pim(Rect(x, y, w1, h1)));
-		y += h1 + 2;
-	}
-	return pim;
-}
-
-// print information about image
-void printinfo(Mat img)
-{
-	printf("width=%d, height=%d, channels=%d, pixel type: ",
-		img.cols, img.rows, img.channels());
-	switch(img.depth()) {
-	case CV_8U:	 printf("CV_8U  -  8-bit unsigned int (0..255)\n"); break;
-	case CV_8S:  printf("CV_8S  -  8-bit signed int (-128..127)\n"); break;
-	case CV_16U: printf("CV_16U - 16-bit unsigned int (0..65535)\n"); break;
-	case CV_16S: printf("CV_16S - 16-bit signed int (-32768..32767)\n"); break;
-	case CV_32S: printf("CV_32S - 32-bit signed int\n"); break;
-	case CV_32F: printf("CV_32F - 32-bit float\n"); break;
-	case CV_64F: printf("CV_64F - 64-bit double\n"); break;
-	default:     printf("unknown\n");
-	}
-}
-
 void imdiff()
 {
 	float s = 1;
@@ -313,21 +233,74 @@ void imdiff()
 	Mat T1 = (Mat_<float>(2,3) << s, 0, dx, 0, s, dy); 
 	//Mat im0t;
 	//warpAffine(im0, im0t, T0, im0.size());
-	Mat im1t;
-	warpAffine(im1, im1t, T1, im1.size());
-	buildPyramid(im1t, pyr1, maxlevels);
-	for (int i = 0; i <= maxlevels; i++) {
-		imdiff(pyr0[i], pyr1[i], pyrd[i]);
-	}
-	//printinfo(pyrd[0]);
+	if (mode == 0) { // difference of images
+		warpAffine(im1, im1t, T1, im1.size());
+		addWeighted(im0, diffscale, im1t, -diffscale, 128, imd);
+	} else if (mode == 1) { // Bleyer weighted sum of color and gradient diff
+		warpAffine(im1, im1t, T1, im1.size());
+		cvtColor(im1t, im1tg, CV_BGR2GRAY );  
+		Mat cdiff, gdiff;
+		absdiff(im0, im1t, cdiff);
+		cvtColor(cdiff, cdiff, CV_BGR2GRAY);
+		computeGradientX(im1tg, gx1);
+		absdiff(gx0, gx1, gdiff);
+		gdiff.convertTo(imd, CV_8U, 10, 0);
+		float sc = diffscale;
+		addWeighted(cdiff, 0.1*sc, gdiff, 0.9*sc, 0, imd, CV_8U);
+		imd = 255 - imd;
+		//still need to truncate diffs
 
-	Mat imd = pyrImg(pyrd);
-	//imd.convertTo(imd, CV_8U);
-	if (imd.channels() != 3)
-		cvtColor(imd, imd, CV_GRAY2BGR);
-	info(imd);
+	} else if (mode == 2) { // NCC
+		warpAffine(im1gf, im1tgf, T1, im1.size());
+		if (nccmode == 0)
+			ncc(im0gf, im1tgf, imd);
+		else
+			ncc2(im0gf, im1tgf, imd);
+	} else if (mode == 3) { // ICPR gradient measure
+		warpAffine(im1g, im1tg, T1, im1.size());
+		computeGradients(im1tg, gx1, gy1, gm1);
+		gm1 += gm0; // sum of the gradient magnitudes s
+		gx1 -= gx0; // compute magnitude of difference
+		gy1 -= gy0;
+		Mat gmag;
+		magnitude(gx1, gy1, gmag); // magnitude of difference d
+		addWeighted(gm1, 0.5, gmag, -1, 128, imd, CV_8U); // result is s/2 - d
+	} else { // new gradient measure
+		warpAffine(im1g, im1tg, T1, im1.size());
+		computeGradients(im1tg, gx1, gy1, gm1);
+		// gradient dot prod
+		gx1 = gx1.mul(gx0);
+		gy1 = gy1.mul(gy0);
+		Mat dot = gx1 + gy1;
+
+		Mat minlen, maxlen;
+		maxlen = max(gm0, gm1);
+		minlen = min(gm0, gm1);
+
+		gm1 = gm1.mul(gm0);
+		gm1 = max(gm1, 1e-10);
+		dot /= gm1;
+		dot = max(dot, 0);
+
+		int k = 10; // exponent
+		pow(dot, k, dot);
+		// now multiply by minlen / maxlen
+		// if minlen too small, just set to zero
+		//double thresh = 1e-10;
+		//threshold(minlen, minlen, thresh, 1, THRESH_TOZERO);
+		//divide(minlen, maxlen, minlen);
+
+
+		dot = dot.mul(minlen);
+		dot.convertTo(imd, CV_8U, 20, 0);
+	}
+
+	//imd = diffscale * imd + (1 - diffscale) * 128;
+	info();
+
 	imshow(win, imd);
 }
+
 
 static void onMouse( int event, int x, int y, int flags, void* )
 {
@@ -352,9 +325,25 @@ static void onMouse( int event, int x, int y, int flags, void* )
 	}
 }
 
+Mat pyrImg(vector<Mat> pyr) 
+{
+	Mat im = pyr[0];
+	int w = im.cols, h = im.rows;
+	Mat pim(Size(3*w/2+4, h+20), CV_8UC3);
+	im.copyTo(pim(Rect(0, 0, w, h)));
+
+	int x = w+2;
+	int y = 0;
+	for (int i = 1; i < (int)pyr.size(); i++) {
+		int w1 = pyr[i].cols, h1 = pyr[i].rows;
+		pyr[i].copyTo(pim(Rect(x, y, w1, h1)));
+		y += h1 + 2;
+	}
+	return pim;
+}
+
 void mainLoop()
 {
-	Mat tmp;
 	while(1) {
 		int c = waitKey(0);
 		switch(c) {
@@ -363,7 +352,7 @@ void mainLoop()
 			return;
 		case 7602176: // F5
 			{
-				//Mat m1 = imd;
+				Mat m1 = imd;
 				break;	// can set a breakpoint here, and then use F5 to stop and restart
 			}
 		case 'h':
@@ -380,11 +369,9 @@ void mainLoop()
 		case ' ': // reset
 			dx = 0; dy = 0; imdiff(); break;
 		case 'a': // show original left image
-			tmp = pyrImg(pyr0);
-			imshow(win, tmp); break;
-		case 's': // show transformed right image
-			tmp = pyrImg(pyr1);
-			imshow(win, tmp); break;
+			imshow(win, im0); break;
+		case 's': // show original right image
+			imshow(win, im1t); break;
 		case 'd': // back to diff
 			imdiff(); break;
 		case 'z': // decrease contrast
@@ -422,33 +409,43 @@ int main(int argc, char ** argv)
 		fprintf(stderr, "usage: %s im1 im2\n", argv[0]);
 		exit(1);
 	}
-	try
-	{
-		im0 = imread(argv[1], 1);
-		if (!im0.data) { 
-			fprintf(stderr, "cannot read image %s\n", argv[1]); 
-			exit(1); 
-		}
-		im1 = imread(argv[2], 1);
-		if (!im1.data) { 
-			fprintf(stderr, "cannot read image %s\n", argv[2]); 
-			exit(1); 
-		}
 
+	im0 = imread(argv[1], 1);
+	if (!im0.data) { 
+		fprintf(stderr, "cannot read image %s\n", argv[1]); 
+		exit(1); 
+	}
+	im1 = imread(argv[2], 1);
+	if (!im1.data) { 
+		fprintf(stderr, "cannot read image %s\n", argv[2]); 
+		exit(1); 
+	}
+
+	int maxlevels = 0;  // if > 0, create pyramid
+
+	if (maxlevels > 1) {
+		vector<Mat> pyr0, pyr1;
 		buildPyramid(im0, pyr0, maxlevels);
+		im0 = pyrImg(pyr0).clone();
 		buildPyramid(im1, pyr1, maxlevels);
-		pyrd.resize(maxlevels+1);
-
-		namedWindow(win, CV_WINDOW_AUTOSIZE);
-		setMouseCallback(win, onMouse);
-		imdiff();
-
-		mainLoop();
+		im1 = pyrImg(pyr1).clone();
 	}
-	catch( cv::Exception& e )
-	{
-		const char* err_msg = e.what();
-		std::cout << "exception caught: " << err_msg << std::endl;
-	}
+
+	// compute graylevel and float versions
+	cvtColor(im0, im0g, CV_BGR2GRAY );  
+	cvtColor(im1, im1g, CV_BGR2GRAY );  
+	im0g.convertTo(im0gf, CV_32F);
+	im1g.convertTo(im1gf, CV_32F);
+
+
+	// compute gradients for im0
+	computeGradients(im0g, gx0, gy0, gm0);
+
+	namedWindow(win, CV_WINDOW_AUTOSIZE);
+	setMouseCallback(win, onMouse);
+	imdiff();
+
+	mainLoop();
+
 	return 0;
 }

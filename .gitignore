@@ -3,4 +3,5 @@ Release/
 *.png
 *.jpg
 *~
-*.sdf
+*sdf
+*.suo
