@@ -15,20 +15,20 @@ int cygwinbug = 0;
 using namespace cv;
 using namespace std;
 
-int maxlevels = 4;  // levels in pyramid
+typedef vector<Mat> Pyr;
 
-Mat im0, im1; // orig images
-vector<Mat> pyr0, pyr1, pyrd; // image pyramids
+Mat im0, im1;  // original images
+Pyr pyr0, pyr1, pyrd; // image pyramids
 
-//Mat imd; // "difference" image
+int pyrlevels = 0;  // levels in pyramid (will be determined based on image size)
+
 int mode = 0;
-int nccmode = 0;
 const int nmodes = 4;
 const char *modestr[nmodes] = {
-	"diff  ", // color diff 
-	"Bleyer", // 0.1 * color diff + 0.9 * gradient diff
+	"diff  ",  // color diff 
 	"NCC   ",
-	"ICPR  "}; // ICPR 94 gradient diff
+	"ICPR  ",  // ICPR 94 gradient diff
+	"Bleyer"}; // 0.1 * color diff + 0.9 * gradient diff
 
 const char *win = "imdiff";
 float dx = 0;
@@ -38,25 +38,27 @@ int xonly = 0; // constrain motion in x dir
 float startx;
 float starty;
 float diffscale = 1;
-float step = 0.2f;    // arrow key step size
+float step = 1;    // arrow key step size
+int nccsize = 3;
 float ncceps = 1e-2f;
+int diffmin = 0; // 0 or 128 to clip negative response
 
 void printhelp()
 {
 	printf("\
 		   drag to change offset, shift-drag for fine control\n\
-		   arrows: change offset\n\
+		   control-drag to restric motion in X only\n\
+		   arrows: change offset by stepsize\n\
 		   Space - reset offset\n\
 		   A, S - show (blink) orig images\n\
 		   D - show diff\n\
-		   0, 1, 2, 3, .. - change mode\n\
+		   1, 2, 3, 4 - change mode\n\
 		   Z, X -  change diff contrast\n\
 		   E, R -  change NCC epsilon\n\
+		   N, M -  change NCC window size\n\
 		   C, V -  change step size\n\
 		   Esc, Q - quit\n");
 }
-
-
 
 void computeGradientX(Mat img, Mat &gx)
 {
@@ -80,12 +82,19 @@ void computeGradients(Mat img, Mat &gx, Mat &gy, Mat &gm)
 void info(Mat imd)
 {
 	//rectangle(imd, Point(0, 0), Point(150, 20), Scalar(100, 100, 100), CV_FILLED); // gray rectangle
-	Mat r = imd(Rect(0, imd.rows-18, imd.cols, 18));  // better: darken subregion!
-	r *= 0.5;
+	//Mat r = imd(Rect(0, imd.rows-18, imd.cols, 18));  // better: darken subregion!
+	//r *= 0.5;
 	char txt[100];
-	sprintf_s(txt, 100, "%s dx=%4.1f dy=%4.1f step=%3.1f ncceps=%5g  'h' = help ", 
-		modestr[mode], dx, dy, step, ncceps);
-	putText(imd, txt, Point(5, imd.rows-4), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
+	if (mode == 1) { // NCC
+		sprintf_s(txt, 100, "NCC %dx%d dx=%4.1f dy=%4.1f step=%3.1f ncceps=%5g", 
+			nccsize, nccsize, dx, dy, step, ncceps);
+	} else {
+		sprintf_s(txt, 100, "%s dx=%4.1f dy=%4.1f step=%3.1f", 
+			modestr[mode], dx, dy, step, ncceps);
+	}
+	putText(imd, txt, Point(5, imd.rows-15), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
+	const char *txt2 = "C/V: step  E/R: eps  Z/X: contrast  N/M: ncc size  H: help";
+	putText(imd, txt2, Point(5, imd.rows-3), FONT_HERSHEY_PLAIN, 0.8, Scalar(120, 180, 180));
 }
 
 void myImDiff2(Mat a, Mat b, Mat &d)
@@ -134,7 +143,6 @@ void boxFilter(Mat src, Mat &dst, int n) {
 }
 
 void ncc(Mat L, Mat R, Mat &imd) {
-	int nccsize = 5;
 	Mat Lb, Rb;
 	boxFilter(L,  Lb, nccsize);
 	boxFilter(R,  Rb, nccsize);
@@ -154,78 +162,6 @@ void ncc(Mat L, Mat R, Mat &imd) {
 	ncc.convertTo(imd, CV_8U, 128, 128);
 }
 
-// 3x3 NCC, taken from Sudipta's code
-void ncc2(Mat L, Mat R, Mat &imd) {
-	int w = L.cols, h = L.rows;
-	if (! imd.data)
-		imd = Mat_<uchar>(h,w);
-
-	for (int y=1; y < h-1; y++) {
-
-		//get starting src block
-		float L10_ = L.at<float>(-1 + y, -1 + 1); float L20_ = L.at<float>(-1 + y,  0 + 1);
-		float L11_ = L.at<float>( 0 + y, -1 + 1); float L21_ = L.at<float>( 0 + y,  0 + 1);
-		float L12_ = L.at<float>(+1 + y, -1 + 1); float L22_ = L.at<float>(+1 + y,  0 + 1);
-
-		float R10_ = R.at<float>(-1 + y, -1 + 1); float R20_ = R.at<float>(-1 + y,  0 + 1);
-		float R11_ = R.at<float>( 0 + y, -1 + 1); float R21_ = R.at<float>( 0 + y,  0 + 1);
-		float R12_ = R.at<float>(+1 + y, -1 + 1); float R22_ = R.at<float>(+1 + y,  0 + 1);
-
-		for (int x = 1; x < w-1; x++) {
-			//shift over src block
-			float L00_ = L10_; L10_ = L20_; L20_ = L.at<float>(-1 + y, +1 + x);
-			float L01_ = L11_; L11_ = L21_; L21_ = L.at<float>( 0 + y, +1 + x);
-			float L02_ = L12_; L12_ = L22_; L22_ = L.at<float>(+1 + y, +1 + x);
-
-			float R00_ = R10_; R10_ = R20_; R20_ = R.at<float>(-1 + y, +1 + x);
-			float R01_ = R11_; R11_ = R21_; R21_ = R.at<float>( 0 + y, +1 + x);
-			float R02_ = R12_; R12_ = R22_; R22_ = R.at<float>(+1 + y, +1 + x);
-
-			float Lavg = 0.111111111111111f * (L00_ + L10_ + L20_ + L01_ + L11_ + L21_ + L02_ + L12_ + L22_);
-			float Ravg = 0.111111111111111f * (R00_ + R10_ + R20_ + R01_ + R11_ + R21_ + R02_ + R12_ + R22_);
-
-			float L00 = L00_ - Lavg; float L10 = L10_ - Lavg; float L20 = L20_ - Lavg;
-			float L01 = L01_ - Lavg; float L11 = L11_ - Lavg; float L21 = L21_ - Lavg;
-			float L02 = L02_ - Lavg; float L12 = L12_ - Lavg; float L22 = L22_ - Lavg;
-
-			float R00 = R00_ - Ravg; float R10 = R10_ - Ravg; float R20 = R20_ - Ravg;
-			float R01 = R01_ - Ravg; float R11 = R11_ - Ravg; float R21 = R21_ - Ravg;
-			float R02 = R02_ - Ravg; float R12 = R12_ - Ravg; float R22 = R22_ - Ravg;
-
-			float LL =
-				L00 * L00 + L10 * L10 + L20 * L20 +
-				L01 * L01 + L11 * L11 + L21 * L21 +
-				L02 * L02 + L12 * L12 + L22 * L22;
-
-			float RR =
-				R00 * R00 + R10 * R10 + R20 * R20 +
-				R01 * R01 + R11 * R11 + R21 * R21 +
-				R02 * R02 + R12 * R12 + R22 * R22;
-
-			float LR =
-				L00 * R00 + L10 * R10 + L20 * R20 +
-				L01 * R01 + L11 * R11 + L21 * R21 +
-				L02 * R02 + L12 * R12 + L22 * R22;
-
-			// This value is good for images with very little noise
-			float ncc = LR / sqrt(LL * RR + ncceps); // add small value to avoid divide by zero
-			int score = (int)((1.0-ncc)*128.0f);
-
-			// Check that variance of intensities in the left image is greater than the noise threshold, 
-			// otherwise set all scores to zero.
-			//if (LL > m_delta) {
-
-			//if (m_delta < 0 && LL < -m_delta) {
-			// Soft threshold on LL variance (Rick, 04/10/13)
-			//score = 1 + int(score * (LL / -m_delta) * (LL / -m_delta));
-			//}
-			//}
-
-			imd.at<uchar>(y, x) = saturate_cast<uchar>(255-score);
-		}
-	}
-}
-
 // compute image "difference" according to mode
 void imdiff(Mat im0, Mat im1, Mat &imd)
 {
@@ -238,27 +174,12 @@ void imdiff(Mat im0, Mat im1, Mat &imd)
 	cvtColor(im0, im0g, CV_BGR2GRAY);  
 	cvtColor(im1, im1g, CV_BGR2GRAY);  
 
-	if (mode == 1) { // Bleyer weighted sum of color and gradient diff
-		Mat cdiff, gx0, gx1, gdiff;
-		absdiff(im0, im1, cdiff);
-		cvtColor(cdiff, cdiff, CV_BGR2GRAY);
-		computeGradientX(im0g, gx0);
-		computeGradientX(im1g, gx1);
-		absdiff(gx0, gx1, gdiff);
-		gdiff.convertTo(imd, CV_8U, 10, 0);
-		float sc = diffscale;
-		addWeighted(cdiff, 0.1*sc, gdiff, 0.9*sc, 0, imd, CV_8U);
-		imd = 255 - imd;
-		//still need to truncate diffs
-	} else if (mode == 2) { // NCC
+	if (mode == 1) { // NCC
 		Mat im0gf, im1gf;
 		im0g.convertTo(im0gf, CV_32F);
 		im1g.convertTo(im1gf, CV_32F);
-		if (nccmode == 0)
-			ncc(im0gf, im1gf, imd);
-		else
-			ncc2(im0gf, im1gf, imd);
-	} else if (mode == 3) { // ICPR gradient measure
+		ncc(im0gf, im1gf, imd);
+	} else if (mode == 2) { // ICPR gradient measure
 		Mat gx0, gy0, gx1, gy1, gm0, gm1; // gradients
 		computeGradients(im0g, gx0, gy0, gm0);
 		computeGradients(im1g, gx1, gy1, gm1);
@@ -268,15 +189,29 @@ void imdiff(Mat im0, Mat im1, Mat &imd)
 		Mat gmag;
 		magnitude(gx1, gy1, gmag); // magnitude of difference d
 		addWeighted(gm1, 0.5, gmag, -1, 128, imd, CV_8U); // result is s/2 - d
+	} else 	if (mode == 3) { // Bleyer weighted sum of color and gradient diff
+		Mat cdiff, gx0, gx1, gdiff;
+		absdiff(im0, im1, cdiff);
+		cvtColor(cdiff, cdiff, CV_BGR2GRAY);
+		computeGradientX(im0g, gx0);
+		computeGradientX(im1g, gx1);
+		absdiff(gx0, gx1, gdiff);
+		gdiff.convertTo(imd, CV_8U, 1, 0);
+		//float sc = diffscale;
+		//addWeighted(cdiff, 0.1*sc, gdiff, 0.9*sc, 0, imd, CV_8U);
+		//imd = 255 - imd;
+		//still need to truncate diffs
+
 	}
+	imd = max(imd, diffmin);
+	boxFilter(imd, imd, 7);
 }
 
-
-Mat pyrImg(vector<Mat> pyr) 
+Mat pyrImg(Pyr pyr) 
 {
 	Mat im = pyr[0];
 	int w = im.cols, h = im.rows;
-	Mat pim(Size(3*w/2+4, h+20), im.type(),Scalar(30, 10, 10));
+	Mat pim(Size(3*w/2+4, h+30), im.type(), Scalar(30, 10, 10));
 	im.copyTo(pim(Rect(0, 0, w, h)));
 
 	int x = w+2;
@@ -306,6 +241,16 @@ void printinfo(Mat img)
 	}
 }
 
+void dispPyr(Pyr pim)
+{
+	Mat im = pyrImg(pim);
+	//im.convertTo(im, CV_8U);
+	if (im.channels() != 3)
+		cvtColor(im, im, CV_GRAY2BGR);
+	info(im);
+	imshow(win, im);
+}
+
 void imdiff()
 {
 	float s = 1;
@@ -315,18 +260,12 @@ void imdiff()
 	//warpAffine(im0, im0t, T0, im0.size());
 	Mat im1t;
 	warpAffine(im1, im1t, T1, im1.size());
-	buildPyramid(im1t, pyr1, maxlevels);
-	for (int i = 0; i <= maxlevels; i++) {
+	buildPyramid(im1t, pyr1, pyrlevels);
+	for (int i = 0; i <= pyrlevels; i++) {
 		imdiff(pyr0[i], pyr1[i], pyrd[i]);
 	}
 	//printinfo(pyrd[0]);
-
-	Mat imd = pyrImg(pyrd);
-	//imd.convertTo(imd, CV_8U);
-	if (imd.channels() != 3)
-		cvtColor(imd, imd, CV_GRAY2BGR);
-	info(imd);
-	imshow(win, imd);
+	dispPyr(pyrd);
 }
 
 static void onMouse( int event, int x, int y, int flags, void* )
@@ -380,11 +319,9 @@ void mainLoop()
 		case ' ': // reset
 			dx = 0; dy = 0; imdiff(); break;
 		case 'a': // show original left image
-			tmp = pyrImg(pyr0);
-			imshow(win, tmp); break;
+			dispPyr(pyr0); break;
 		case 's': // show transformed right image
-			tmp = pyrImg(pyr1);
-			imshow(win, tmp); break;
+			dispPyr(pyr1); break;
 		case 'd': // back to diff
 			imdiff(); break;
 		case 'z': // decrease contrast
@@ -395,23 +332,35 @@ void mainLoop()
 			ncceps /= 2; imdiff(); break;
 		case 'r': // increase eps
 			ncceps *= 2; imdiff(); break;
+		case 'n': // decrease NCC window size
+			nccsize = max(nccsize-2, 3); imdiff(); break;
+		case 'm': // increase NCC window size
+			nccsize += 2; imdiff(); break;
 		case 'c': // decrease step
 			step /= 2; imdiff(); break;
 		case 'v': // increase step
 			step *= 2; imdiff(); break;
+		case 'b': // toggle clipping negative response
+			diffmin = 128 - diffmin; imdiff(); break;
 		case '1': case '2': case '3': case '4':  // change mode
 		case '5': case '6': case '7': case '8': case '9':
 			mode = min(c - '1', nmodes-1);
-			printf("using mode %s\n", modestr[mode]);
-			imdiff(); break;
-		case 'n': // change nccmode
-			nccmode = ! nccmode;
-			printf("using %s\n", nccmode? "ncc2 - sudipta" : "ncc - opencv");
+			//printf("using mode %s\n", modestr[mode]);
 			imdiff(); break;
 		default:
 			printf("key %d (%c %d) pressed\n", c, (char)c, (char)c);
 		}
 	}
+}
+
+Mat readIm(char *fname) 
+{
+	Mat im = imread(fname, 1);
+	if (im.empty()) { 
+		fprintf(stderr, "cannot read image %s\n", fname); 
+		exit(1); 
+	}
+	return im;
 }
 
 int main(int argc, char ** argv)
@@ -422,22 +371,33 @@ int main(int argc, char ** argv)
 		fprintf(stderr, "usage: %s im1 im2\n", argv[0]);
 		exit(1);
 	}
-	try
-	{
-		im0 = imread(argv[1], 1);
-		if (!im0.data) { 
-			fprintf(stderr, "cannot read image %s\n", argv[1]); 
-			exit(1); 
-		}
-		im1 = imread(argv[2], 1);
-		if (!im1.data) { 
-			fprintf(stderr, "cannot read image %s\n", argv[2]); 
-			exit(1); 
+	try {
+		im0 = readIm(argv[1]);
+		im1 = readIm(argv[2]);
+
+		// crop region in images if too big
+		int maxw = 600;
+		if (im0.cols > maxw) { // crop subregion
+			int w = maxw, h = min(im0.rows, maxw);
+			Rect r = Rect((im0.cols - w)/2, (im0.rows - h)/2, w, h);
+			im0 = im0(r);
+			im1 = im1(r);
 		}
 
-		buildPyramid(im0, pyr0, maxlevels);
-		buildPyramid(im1, pyr1, maxlevels);
-		pyrd.resize(maxlevels+1);
+		// determine number of levels in the pyramid
+		int smallestpyr = 20; // size of smallest pyramid image
+		int minsize = __min(im0.rows, im0.cols)/2;
+		pyrlevels = 0;
+		while (minsize >= smallestpyr) {
+			minsize /= 2;
+			pyrlevels++;
+		}
+
+		buildPyramid(im0, pyr0, pyrlevels);
+		buildPyramid(im1, pyr1, pyrlevels);
+		pyrd.resize(pyrlevels+1);
+		//Mat im = pyr0[pyrlevels];
+		//printf("%d levels, smallest size = %d x %d\n", pyrlevels, im.cols, im.rows);
 
 		namedWindow(win, CV_WINDOW_AUTOSIZE);
 		setMouseCallback(win, onMouse);
@@ -445,10 +405,9 @@ int main(int argc, char ** argv)
 
 		mainLoop();
 	}
-	catch( cv::Exception& e )
-	{
-		const char* err_msg = e.what();
-		std::cout << "exception caught: " << err_msg << std::endl;
+	catch (Exception &e) {
+		fprintf(stderr, "exception caught: %s\n", e.what());
+		exit(1);
 	}
 	return 0;
 }
