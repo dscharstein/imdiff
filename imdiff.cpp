@@ -41,21 +41,24 @@ float diffscale = 1;
 float step = 1;    // arrow key step size
 int nccsize = 3;
 float ncceps = 1e-2f;
+int aggrsize = 1;
 int diffmin = 0; // 0 or 128 to clip negative response
 
 void printhelp()
 {
 	printf("\
 		   drag to change offset, shift-drag for fine control\n\
-		   control-drag to restric motion in X only\n\
+		   control-drag to restrict motion in X only\n\
 		   arrows: change offset by stepsize\n\
 		   Space - reset offset\n\
 		   A, S - show (blink) orig images\n\
 		   D - show diff\n\
 		   1, 2, 3, 4 - change mode\n\
+		   B - toggle clipping at 0\n\
 		   Z, X -  change diff contrast\n\
 		   E, R -  change NCC epsilon\n\
 		   N, M -  change NCC window size\n\
+		   F, G -  change aggregation window size\n\
 		   C, V -  change step size\n\
 		   Esc, Q - quit\n");
 }
@@ -86,14 +89,14 @@ void info(Mat imd)
 	//r *= 0.5;
 	char txt[100];
 	if (mode == 1) { // NCC
-		sprintf_s(txt, 100, "NCC %dx%d dx=%4.1f dy=%4.1f step=%3.1f ncceps=%5g", 
-			nccsize, nccsize, dx, dy, step, ncceps);
+		sprintf_s(txt, 100, "NCC %dx%d dx=%4.1f dy=%4.1f step=%3.1f aggr %dx%d ncceps=%5g", 
+			nccsize, nccsize, dx, dy, step, aggrsize, aggrsize, ncceps);
 	} else {
-		sprintf_s(txt, 100, "%s dx=%4.1f dy=%4.1f step=%3.1f", 
-			modestr[mode], dx, dy, step, ncceps);
+		sprintf_s(txt, 100, "%s dx=%4.1f dy=%4.1f step=%3.1f aggr %dx%d", 
+			modestr[mode], dx, dy, step, aggrsize, aggrsize);
 	}
 	putText(imd, txt, Point(5, imd.rows-15), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
-	const char *txt2 = "C/V: step  E/R: eps  Z/X: contrast  N/M: ncc size  H: help";
+	const char *txt2 = "C/V: step  E/R: eps  Z/X: contrast  N/M: ncc size F/G: aggr  H: help";
 	putText(imd, txt2, Point(5, imd.rows-3), FONT_HERSHEY_PLAIN, 0.8, Scalar(120, 180, 180));
 }
 
@@ -196,7 +199,7 @@ void imdiff(Mat im0, Mat im1, Mat &imd)
 		computeGradientX(im0g, gx0);
 		computeGradientX(im1g, gx1);
 		absdiff(gx0, gx1, gdiff);
-		gdiff.convertTo(imd, CV_8U, 1, 0);
+		gdiff.convertTo(imd, CV_8U, 1, 0); // only show x-grad diff right now
 		//float sc = diffscale;
 		//addWeighted(cdiff, 0.1*sc, gdiff, 0.9*sc, 0, imd, CV_8U);
 		//imd = 255 - imd;
@@ -204,7 +207,8 @@ void imdiff(Mat im0, Mat im1, Mat &imd)
 
 	}
 	imd = max(imd, diffmin);
-	boxFilter(imd, imd, 7);
+	if (aggrsize > 1)
+		boxFilter(imd, imd, aggrsize);
 }
 
 Mat pyrImg(Pyr pyr) 
@@ -336,6 +340,10 @@ void mainLoop()
 			nccsize = max(nccsize-2, 3); imdiff(); break;
 		case 'm': // increase NCC window size
 			nccsize += 2; imdiff(); break;
+		case 'f': // decrease aggregation window size
+			aggrsize = max(aggrsize-2, 1); imdiff(); break;
+		case 'g': // increase aggregation window size
+			aggrsize += 2; imdiff(); break;
 		case 'c': // decrease step
 			step /= 2; imdiff(); break;
 		case 'v': // increase step
@@ -368,18 +376,26 @@ int main(int argc, char ** argv)
 	setvbuf(stdout, (char*)NULL, _IONBF, 0); // fix to flush stdout when called from cygwin
 
 	if (argc < 3) {
-		fprintf(stderr, "usage: %s im1 im2\n", argv[0]);
+		fprintf(stderr, "usage: %s im1 im2 [offsx [offsy]]\n", argv[0]);
 		exit(1);
 	}
 	try {
 		im0 = readIm(argv[1]);
 		im1 = readIm(argv[2]);
+		int offsx = -1, offsy = -1;
+		if (argc > 3)
+			offsx = atoi(argv[3]);
+		if (argc > 4)
+			offsy = atoi(argv[4]);
 
 		// crop region in images if too big
 		int maxw = 600;
 		if (im0.cols > maxw) { // crop subregion
 			int w = maxw, h = min(im0.rows, maxw);
-			Rect r = Rect((im0.cols - w)/2, (im0.rows - h)/2, w, h);
+			offsx = (offsx < 0) ? (im0.cols - w)/2 : max(0, min(im0.cols - w - 1, offsx));
+			offsy = (offsy < 0) ? (im0.rows - h)/2 : max(0, min(im0.rows - h - 1, offsy));
+			Rect r = Rect(offsx, offsy, w, h);
+			printf("cropping region %dx%d +%d +%d\n", w, h, offsx, offsy);
 			im0 = im0(r);
 			im1 = im1(r);
 		}
