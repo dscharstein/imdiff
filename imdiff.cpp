@@ -63,7 +63,7 @@ void printhelp()
 		   N, M -  change NCC window size\n\
 		   F, G -  change aggregation window size\n\
 		   C, V -  change step size\n\
-		   ,./l -  move cropped region\n\
+		   JKLI -  move cropped region\n\
 		   Esc, Q - quit\n");
 }
 
@@ -371,13 +371,13 @@ void mainLoop()
 			step *= 2; imdiff(); break;
 		case 'b': // toggle clipping negative response
 			diffmin = 128 - diffmin; imdiff(); break;
-		case ',': // move ROI left
+		case 'j': // move ROI left
 			shiftROI(-30, 0); break;
-		case '/': // move ROI right
+		case 'l': // move ROI right
 			shiftROI(30, 0); break;
-		case '.': // move ROI down
+		case 'k': // move ROI down
 			shiftROI(0, 30); break;
-		case 'l': // move ROI up
+		case 'i': // move ROI up
 			shiftROI(0, -30); break;
 		case '1': case '2': case '3': case '4':  // change mode
 		case '5': case '6': case '7': case '8': case '9':
@@ -400,22 +400,49 @@ Mat readIm(char *fname)
 	return im;
 }
 
+void ensureSameSize(Mat &im0, Mat &im1, bool exitIfDifferent=false) 
+{
+	if (im0.rows == im1.rows && im0.cols == im1.cols)
+		return;
+	if (exitIfDifferent) {
+		fprintf(stderr, "images must have the same size\n"); 
+		exit(1); 
+	}
+	// otherwise crop to common size
+	Rect r(Point(0, 0), im0.size());
+	r &= Rect(Point(0, 0), im1.size());  //Rectangle intersection
+	im0 = im0(r);
+	im1 = im1(r);
+}
+
 int main(int argc, char ** argv)
 {
 	setvbuf(stdout, (char*)NULL, _IONBF, 0); // fix to flush stdout when called from cygwin
 
 	if (argc < 3) {
-		fprintf(stderr, "usage: %s im1 im2 [offsx [offsy]]\n", argv[0]);
+		fprintf(stderr, "usage: %s im1 im2 [decimationFact [offsx [offsy]]]\n", argv[0]);
 		exit(1);
 	}
 	try {
 		oim0 = readIm(argv[1]);
 		oim1 = readIm(argv[2]);
+		ensureSameSize(oim0, oim1);
+
+		int downsample = 1; // use 2 for half-size, etc.
 		int offsx = -1, offsy = -1;
 		if (argc > 3)
-			offsx = atoi(argv[3]);
+			downsample = atoi(argv[3]);
 		if (argc > 4)
-			offsy = atoi(argv[4]);
+			offsx = atoi(argv[4]);
+		if (argc > 5)
+			offsy = atoi(argv[5]);
+
+		// downsample images
+		if (downsample > 1) {
+			double f = 1.0/downsample;
+			resize(oim0, oim0, Size(), f, f, INTER_AREA);
+			resize(oim1, oim1, Size(), f, f, INTER_AREA);
+		}
 
 		// crop region in images if too big
 		int maxw = 600;
