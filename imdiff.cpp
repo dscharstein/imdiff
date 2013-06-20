@@ -17,10 +17,12 @@ using namespace std;
 
 typedef vector<Mat> Pyr;
 
-Mat im0, im1;  // original images
-Pyr pyr0, pyr1, pyrd; // image pyramids
+Mat oim0, oim1;       // original images
+Rect roi;             // cropping rectangle
+Mat im0, im1;         // cropped images
+Pyr pyr0, pyr1, pyrd; // image pyramids of cropped regions
 
-int pyrlevels = 0;  // levels in pyramid (will be determined based on image size)
+int pyrlevels = 0;  // levels in pyramid (will be determined based on cropped image size)
 
 int mode = 0;
 const int nmodes = 4;
@@ -37,6 +39,7 @@ float ds = 1;  // motion control multiplier
 int xonly = 0; // constrain motion in x dir
 float startx;
 float starty;
+float startdy;
 float diffscale = 1;
 float step = 1;    // arrow key step size
 int nccsize = 3;
@@ -60,6 +63,7 @@ void printhelp()
 		   N, M -  change NCC window size\n\
 		   F, G -  change aggregation window size\n\
 		   C, V -  change step size\n\
+		   ,./l -  move cropped region\n\
 		   Esc, Q - quit\n");
 }
 
@@ -283,15 +287,32 @@ static void onMouse( int event, int x, int y, int flags, void* )
 		xonly = flags & CV_EVENT_FLAG_CTRLKEY;  // xonly motion if Control is down
 		startx = ds*x - dx;
 		starty = ds*y - dy;
+		startdy = dy;
 		//} else if (event == CV_EVENT_LBUTTONUP) {
 		//	imdiff();
 	} else if (event == CV_EVENT_MOUSEMOVE && flags & CV_EVENT_FLAG_LBUTTON) {
-		//startx < 9999) {
+		xonly = flags & CV_EVENT_FLAG_CTRLKEY;  // xonly motion if Control is down
 		dx = ds*x - startx;
 		if (!xonly)
 			dy = ds*y - starty;
+		else
+			dy = startdy;
 		if (!cygwinbug)
 			imdiff();
+	}
+}
+
+void shiftROI(int ddx, int ddy) {
+	ddx = min(oim0.cols - (roi.x + roi.width),  max(-roi.x, ddx));
+	ddy = min(oim0.rows - (roi.y + roi.height), max(-roi.y, ddy));
+	if (ddx != 0 || ddy != 0) {
+		//printf("ddx=%d  ddy=%d\n", ddx, ddy);
+		roi += Point(ddx, ddy);
+		im0 = oim0(roi);
+		im1 = oim1(roi);
+		buildPyramid(im0, pyr0, pyrlevels);
+		buildPyramid(im1, pyr1, pyrlevels);
+		imdiff();
 	}
 }
 
@@ -350,6 +371,14 @@ void mainLoop()
 			step *= 2; imdiff(); break;
 		case 'b': // toggle clipping negative response
 			diffmin = 128 - diffmin; imdiff(); break;
+		case ',': // move ROI left
+			shiftROI(-30, 0); break;
+		case '/': // move ROI right
+			shiftROI(30, 0); break;
+		case '.': // move ROI down
+			shiftROI(0, 30); break;
+		case 'l': // move ROI up
+			shiftROI(0, -30); break;
 		case '1': case '2': case '3': case '4':  // change mode
 		case '5': case '6': case '7': case '8': case '9':
 			mode = min(c - '1', nmodes-1);
@@ -380,8 +409,8 @@ int main(int argc, char ** argv)
 		exit(1);
 	}
 	try {
-		im0 = readIm(argv[1]);
-		im1 = readIm(argv[2]);
+		oim0 = readIm(argv[1]);
+		oim1 = readIm(argv[2]);
 		int offsx = -1, offsy = -1;
 		if (argc > 3)
 			offsx = atoi(argv[3]);
@@ -390,15 +419,17 @@ int main(int argc, char ** argv)
 
 		// crop region in images if too big
 		int maxw = 600;
-		if (im0.cols > maxw) { // crop subregion
-			int w = maxw, h = min(im0.rows, maxw);
-			offsx = (offsx < 0) ? (im0.cols - w)/2 : max(0, min(im0.cols - w - 1, offsx));
-			offsy = (offsy < 0) ? (im0.rows - h)/2 : max(0, min(im0.rows - h - 1, offsy));
-			Rect r = Rect(offsx, offsy, w, h);
+		if (oim0.cols > maxw) { // crop subregion
+			int w = maxw, h = min(oim0.rows, maxw);
+			offsx = (offsx < 0) ? (oim0.cols - w)/2 : max(0, min(oim0.cols - w - 1, offsx));
+			offsy = (offsy < 0) ? (oim0.rows - h)/2 : max(0, min(oim0.rows - h - 1, offsy));
+			roi = Rect(offsx, offsy, w, h);
 			printf("cropping region %dx%d +%d +%d\n", w, h, offsx, offsy);
-			im0 = im0(r);
-			im1 = im1(r);
+		} else {
+			roi = Rect(0, 0, oim0.cols, oim0.rows);
 		}
+		im0 = oim0(roi);
+		im1 = oim1(roi);
 
 		// determine number of levels in the pyramid
 		int smallestpyr = 20; // size of smallest pyramid image
