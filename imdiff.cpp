@@ -33,8 +33,9 @@ const char *modestr[nmodes] = {
 	"Bleyer"}; // 0.1 * color diff + 0.9 * gradient diff
 
 const char *win = "imdiff";
-float dx = 0;
+float dx = 0;  // offset between images
 float dy = 0;
+float dgx = 0; // disparity gradient
 float ds = 1;  // motion control multiplier
 int xonly = 0; // constrain motion in x dir
 float startx;
@@ -53,6 +54,7 @@ void printhelp()
 		   drag to change offset, shift-drag for fine control\n\
 		   control-drag to restrict motion in X only\n\
 		   arrows: change offset by stepsize\n\
+		   O, P - change disp x gradient\n\
 		   Space - reset offset\n\
 		   A, S - show (blink) orig images\n\
 		   D - show diff\n\
@@ -259,11 +261,30 @@ void dispPyr(Pyr pim)
 	imshow(win, im);
 }
 
+// move rect within bounds w, h, return whether moved
+bool offsetRect(Rect &r, int ddx, int ddy, int w, int h)
+{
+	ddx = min(w - (r.x + r.width),  max(-r.x, ddx));
+	ddy = min(h - (r.y + r.height), max(-r.y, ddy));
+	r += Point(ddx, ddy);
+	return ddx != 0 || ddy != 0;
+}
+
 void imdiff()
 {
+	// try to accommodate offset dx, dy by shifting roi in im1
+	Rect roi1 = roi;	
+	offsetRect(roi1, (int)floor(-dx), (int)floor(-dy), oim1.cols, oim1.rows);
+	im1 = oim1(roi1);
+	buildPyramid(im1, pyr1, pyrlevels);
+
+	// now compute remaining dx, dy given difference of roi's
+	Point dd = roi.tl() - roi1.tl();
+	float rdx = dx - dd.x - dgx*im0.rows/2; // rotate around center
+	float rdy = dy - dd.y;
 	float s = 1;
 	//Mat T0 = (Mat_<float>(2,3) << s, 0,  0, 0, s,  0); 
-	Mat T1 = (Mat_<float>(2,3) << s, 0, dx, 0, s, dy); 
+	Mat T1 = (Mat_<float>(2,3) << s, dgx, rdx, 0, s, rdy); 
 	//Mat im0t;
 	//warpAffine(im0, im0t, T0, im0.size());
 	Mat im1t;
@@ -302,16 +323,11 @@ static void onMouse( int event, int x, int y, int flags, void* )
 	}
 }
 
+
 void shiftROI(int ddx, int ddy) {
-	ddx = min(oim0.cols - (roi.x + roi.width),  max(-roi.x, ddx));
-	ddy = min(oim0.rows - (roi.y + roi.height), max(-roi.y, ddy));
-	if (ddx != 0 || ddy != 0) {
-		//printf("ddx=%d  ddy=%d\n", ddx, ddy);
-		roi += Point(ddx, ddy);
+	if (offsetRect(roi, ddx, ddy, oim0.cols, oim0.rows)) {
 		im0 = oim0(roi);
-		im1 = oim1(roi);
 		buildPyramid(im0, pyr0, pyrlevels);
-		buildPyramid(im1, pyr1, pyrlevels);
 		imdiff();
 	}
 }
@@ -341,8 +357,12 @@ void mainLoop()
 			dy -= step; imdiff(); break; 
 		case 2621440: case 65364: // down arrow
 			dy += step; imdiff(); break;
+		case 'o': // increase x disp gradient
+			dgx += 0.02f; imdiff(); break;
+		case 'p': // decrease x disp gradient
+			dgx -= 0.02f; imdiff(); break;
 		case ' ': // reset
-			dx = 0; dy = 0; imdiff(); break;
+			dx = 0; dy = 0; dgx = 0; imdiff(); break;
 		case 'a': // show original left image
 			dispPyr(pyr0); break;
 		case 's': // show transformed right image
