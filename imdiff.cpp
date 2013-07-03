@@ -6,6 +6,18 @@
 * added computation on image pyramids 6/18/2013
 */
 
+/* This visual studio project requires two windows environment variables to be set.  Example:
+ * OPENCV         D:\opencv-2.4.6
+ * OPENCVversion  246
+ *
+ * based on these variables, it then uses includes and libraries, e.g.:
+ * D:\opencv-2.4.6\build\include
+ * D:\opencv-2.4.6\build\x86\vc11\lib\opencv_core246.lib
+ *
+ * In addition, the system path needs to include the following location so that DLLs can be found:
+ * D:\opencv-2.4.6\build\x86\vc11\bin
+ */
+
 // set to 1 if running on cygwin - turns off mouse motion animation, o/w crashes on cygwin
 int cygwinbug = 0;
 
@@ -343,7 +355,8 @@ void shiftROI(int ddx, int ddy) {
 void mainLoop()
 {
 	Mat tmp;
-	while(1) {
+
+	while (1) {
 		int c = waitKey(0);
 		switch(c) {
 		case 27: // ESC
@@ -412,6 +425,8 @@ void mainLoop()
 			mode = min(c - '1', nmodes-1);
 			//printf("using mode %s\n", modestr[mode]);
 			imdiff(); break;
+		case -1: // happens when the user closes the window
+			return;
 		default:
 			printf("key %d (%c %d) pressed\n", c, (char)c, (char)c);
 		}
@@ -506,6 +521,7 @@ int main(int argc, char ** argv)
 		imdiff();
 
 		mainLoop();
+		destroyAllWindows();
 	}
 	catch (Exception &e) {
 		fprintf(stderr, "exception caught: %s\n", e.what());
