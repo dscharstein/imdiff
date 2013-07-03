@@ -50,23 +50,28 @@ int diffmin = 0; // 0 or 128 to clip negative response
 
 void printhelp()
 {
-	printf("\
-		   drag to change offset, shift-drag for fine control\n\
-		   control-drag to restrict motion in X only\n\
-		   arrows: change offset by stepsize\n\
-		   O, P - change disp x gradient\n\
-		   Space - reset offset\n\
-		   A, S - show (blink) orig images\n\
-		   D - show diff\n\
-		   1, 2, 3, 4 - change mode\n\
-		   B - toggle clipping at 0\n\
-		   Z, X -  change diff contrast\n\
-		   E, R -  change NCC epsilon\n\
-		   N, M -  change NCC window size\n\
-		   F, G -  change aggregation window size\n\
-		   C, V -  change step size\n\
-		   JKLI -  move cropped region\n\
-		   Esc, Q - quit\n");
+	printf(
+		"drag to change offset, shift-drag for fine control\n"
+		"control-drag to restrict motion in X only\n"
+		"arrows: change offset by stepsize\n"
+		"C, V  - change step size\n"
+		"O, P  - change disp x gradient\n"
+		"Space - reset offset\n"
+		"A, S  - show (blink) orig images\n"
+		"D     - show diff\n"
+		"1-4 - change mode:\n"
+		"  1 - color diff\n"
+		"  2 - NCC\n"
+		"  3 - ICPR cost\n"
+		"  4 - Bleyer cost\n"
+		"B     - toggle clipping at 0 (modes 2-4)\n"
+		"Z, X  - change diff contrast (mode 1)\n"
+		"E, R  - change NCC epsilon (mode 2)\n"
+		"N, M  - change NCC window size (mode 2)\n"
+		"F, G  - change aggregation window size (modes 2-4)\n"
+		"JKLI  - move cropped region (large imgs only)\n"
+		"H , ? - help\n"
+		"Esc, Q - quit\n");
 }
 
 void computeGradientX(Mat img, Mat &gx)
@@ -94,15 +99,18 @@ void info(Mat imd)
 	//Mat r = imd(Rect(0, imd.rows-18, imd.cols, 18));  // better: darken subregion!
 	//r *= 0.5;
 	char txt[100];
-	if (mode == 1) { // NCC
-		sprintf_s(txt, 100, "NCC %dx%d dx=%4.1f dy=%4.1f step=%3.1f aggr %dx%d ncceps=%5g", 
+	if (mode == 0) { // color diff
+		sprintf_s(txt, 100, "1-diff * %.1f  dx=%4.1f dy=%4.1f step=%3.1f", 
+			diffscale, dx, dy, step);
+	} else if (mode == 1) { // NCC
+		sprintf_s(txt, 100, "2-NCC %dx%d dx=%4.1f dy=%4.1f step=%3.1f aggr %dx%d ncceps=%5g", 
 			nccsize, nccsize, dx, dy, step, aggrsize, aggrsize, ncceps);
 	} else {
-		sprintf_s(txt, 100, "%s dx=%4.1f dy=%4.1f step=%3.1f aggr %dx%d", 
-			modestr[mode], dx, dy, step, aggrsize, aggrsize);
+		sprintf_s(txt, 100, "%d-%s dx=%4.1f dy=%4.1f step=%3.1f aggr %dx%d", 
+			mode+1, modestr[mode], dx, dy, step, aggrsize, aggrsize);
 	}
 	putText(imd, txt, Point(5, imd.rows-15), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
-	const char *txt2 = "C/V: step  E/R: eps  Z/X: contrast  N/M: ncc size F/G: aggr  H: help";
+	const char *txt2 = "C/V:step  O/P:dgx  Z/X:contrast  N/M:nccsize  E/R:ncceps  F/G:aggr  ?:help  Q:quit";
 	putText(imd, txt2, Point(5, imd.rows-3), FONT_HERSHEY_PLAIN, 0.8, Scalar(120, 180, 180));
 }
 
@@ -357,12 +365,16 @@ void mainLoop()
 			dy -= step; imdiff(); break; 
 		case 2621440: case 65364: // down arrow
 			dy += step; imdiff(); break;
+		case 'c': // decrease step
+			step /= 2; imdiff(); break;
+		case 'v': // increase step
+			step *= 2; imdiff(); break;
 		case 'o': // increase x disp gradient
 			dgx += 0.02f; imdiff(); break;
 		case 'p': // decrease x disp gradient
 			dgx -= 0.02f; imdiff(); break;
 		case ' ': // reset
-			dx = 0; dy = 0; dgx = 0; imdiff(); break;
+			dx = 0; dy = 0; dgx = 0; diffscale = 1; nccsize = 3; imdiff(); break;
 		case 'a': // show original left image
 			dispPyr(pyr0); break;
 		case 's': // show transformed right image
@@ -370,27 +382,23 @@ void mainLoop()
 		case 'd': // back to diff
 			imdiff(); break;
 		case 'z': // decrease contrast
-			diffscale /= 1.5; imdiff(); break;
+			if (mode==0) {diffscale /= 1.5; imdiff();} break;
 		case 'x': // increase contrast
-			diffscale *= 1.5; imdiff(); break;
+			if (mode==0) {diffscale *= 1.5; imdiff();} break;
 		case 'e': // decrease eps
-			ncceps /= 2; imdiff(); break;
+			if (mode==1) {ncceps /= 2; imdiff();} break;
 		case 'r': // increase eps
-			ncceps *= 2; imdiff(); break;
+			if (mode==1) {ncceps *= 2; imdiff();} break;
 		case 'n': // decrease NCC window size
-			nccsize = max(nccsize-2, 3); imdiff(); break;
+			if (mode==1) {nccsize = max(nccsize-2, 3); imdiff();} break;
 		case 'm': // increase NCC window size
-			nccsize += 2; imdiff(); break;
+			if (mode==1) {nccsize += 2; imdiff();} break;
 		case 'f': // decrease aggregation window size
-			aggrsize = max(aggrsize-2, 1); imdiff(); break;
+			if (mode>0) {aggrsize = max(aggrsize-2, 1); imdiff();} break;
 		case 'g': // increase aggregation window size
-			aggrsize += 2; imdiff(); break;
-		case 'c': // decrease step
-			step /= 2; imdiff(); break;
-		case 'v': // increase step
-			step *= 2; imdiff(); break;
+			if (mode>0) {aggrsize += 2; imdiff();} break;
 		case 'b': // toggle clipping negative response
-			diffmin = 128 - diffmin; imdiff(); break;
+			if (mode>0) {diffmin = 128 - diffmin; imdiff();} break;
 		case 'j': // move ROI left
 			shiftROI(-30, 0); break;
 		case 'l': // move ROI right

@@ -1,7 +1,11 @@
 Debug/
 Release/
-*.png
-*.jpg
 *~
 *sdf
 *.suo
+# no images
+*.png
+*.jpg
+# except for these two sample images
+!booksL.jpg
+!booksR.jpg
