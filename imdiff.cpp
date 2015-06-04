@@ -4,6 +4,7 @@
 * working version as of May 31 2013
 * added github control 6/17/2013
 * added computation on image pyramids 6/18/2013
+* made to compile on Macs and Linux 6/4/2015
 */
 
 /* This visual studio project requires two windows environment variables to be set.  Example:
@@ -16,6 +17,8 @@
  *
  * In addition, the system path needs to include the following location so that DLLs can be found:
  * D:\opencv-2.4.6\build\x86\vc11\bin
+ *
+ * *** 2015: changed to use opencv-3.0.0, vc12 -- need to update project settings and these instructions
  */
 
 // set to 1 if running on cygwin - turns off mouse motion animation, o/w crashes on cygwin
@@ -23,6 +26,10 @@ int cygwinbug = 0;
 
 #include <stdio.h>
 #include "opencv2/opencv.hpp"
+
+#ifdef __linux__
+#define sprintf_s snprintf
+#endif
 
 using namespace cv;
 using namespace std;
@@ -503,7 +510,7 @@ int main(int argc, char ** argv)
 
 		// determine number of levels in the pyramid
 		int smallestpyr = 20; // size of smallest pyramid image
-		int minsize = __min(im0.rows, im0.cols)/2;
+		int minsize = min(im0.rows, im0.cols)/2;
 		pyrlevels = 0;
 		while (minsize >= smallestpyr) {
 			minsize /= 2;

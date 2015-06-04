@@ -3,6 +3,11 @@ Release/
 *~
 *sdf
 *.suo
+*.o
+
+# don't want linux executable:
+imdiff
+
 # no images
 *.png
 *.jpg
