@@ -27,7 +27,7 @@ int cygwinbug = 0;
 #include <stdio.h>
 #include "opencv2/opencv.hpp"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #define sprintf_s snprintf
 #endif
 
