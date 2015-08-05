@@ -5,7 +5,7 @@
 * added github control 6/17/2013
 * added computation on image pyramids 6/18/2013
 * made to compile on Macs and Linux 6/4/2015
-* added confidence computation and GT image warping 7/10/15
+* added confidence computation and GT image warping (Matt & Bianca) July 2015
 */
 
 /* This visual studio project requires two windows environment variables to be set.  Example:
@@ -13,13 +13,11 @@
  * OPENCVversion  300
  *
  * based on these variables, it then uses includes and libraries, e.g.:
- * D:\opencv-2.4.6\build\include
- * D:\opencv-2.4.6\build\x86\vc11\lib\opencv_core246.lib
+ * C:\opencv3.0\build\include
+ * C:\opencv3.0\build\x64\vc12\lib\opencv_world300.lib
  *
  * In addition, the system path needs to include the following location so that DLLs can be found:
- * D:\opencv-2.4.6\build\x86\vc11\bin
- *
- * *** 2015: changed to use opencv-3.0.0, vc12 -- need to update project settings and these instructions
+ * C:\opencv3.0\build\x64\vc12\bin
  */
 
 // set to 1 if running on cygwin - turns off mouse motion animation, o/w crashes on cygwin
