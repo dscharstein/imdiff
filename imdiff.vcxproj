@@ -76,7 +76,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalLibraryDirectories>$(OPENCV)\build\x64\vc12</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(OPENCV)\build\x64\vc12\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>opencv_world$(OPENCVversion)d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -121,13 +121,14 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>$(OPENCV)\build\include</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4756</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>opencv_core$(OPENCVversion).lib;opencv_highgui$(OPENCVversion).lib;opencv_imgproc$(OPENCVversion).lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OPENCV)\build\x86\vc11\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world$(OPENCVversion).lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OPENCV)\build\x64\vc12\lib</AdditionalLibraryDirectories>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>

@@ -1,6 +1,6 @@
-# cv-vis
+# imdiff
 
-To download run `git clone https://github.com/biamess/imdiff.git`
+A program for visualizing stereo matching costs
 
 ## User Information
 
@@ -58,7 +58,10 @@ Note: The command line parser does not expect spaces before/after the equals sig
 
 #### Dependencies
 
-This program makes use of a pfm reader which it must be able to access in order to compile. This pfm reader can be found on github. To download run `git clone https://github.com/mthstanley/pfmLib.git`
+This program makes use of a pfm reader, which is part of the distribution.
+The pfm reader can also be downloaded separately from github via
+
+`git clone https://github.com/dscharstein/pfmLib.git`
 
 ### Known bugs:
 	-translation of warped by plane images are off by several pixels 
