@@ -1,16 +1,24 @@
 Debug/
 Release/
+ipch/
+x64/
 *~
 *sdf
 *.suo
 *.o
+*.a
+*.txt
 
-# don't want linux executable:
+.DS_Store
+
+# don't want linux or cygwin executable:
 imdiff
+imdiff.exe
 
 # no images
 *.png
 *.jpg
+*.pfm
 # except for these two sample images
 !booksL.jpg
 !booksR.jpg
