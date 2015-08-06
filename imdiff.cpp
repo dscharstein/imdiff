@@ -245,7 +245,7 @@ int linearInterpi(float fx, float fy, int v00, int v01, int v10, int v11)
 }
 
 // added by Matt Stanley & Bianca Messner 2015-07-15
-// warps an image by it's ground truth disparities
+// warps an image by its ground truth disparities
 void warpImageInv(Mat src, Mat &dst, Mat dispx, float scalex=1.0)
 {
     // get dimensions and type of src image
@@ -387,6 +387,9 @@ void warpByGT(Mat src, Mat &dst, Mat gtd, Mat occlusion_mask)
 	maskOccluded(dst, dst, occlusion_mask);
     }
 }
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+
 
 // added by Bianca Messner & Matt Stanley 2015-07-20
 // fixed 8/6/2015 to use inverse since plane is wrt im0 and we're warping im1!
@@ -397,16 +400,17 @@ void planeWarp(){
     float b = planes[selected_plane_id].b;
     float c = planes[selected_plane_id].c;
 
-    /* im0 -> im1:
-       d = ax+by+c
-       x1 = x-d
+    /* derivation:
+       im0 -> im1:
+       d = a x0 + b y + c
+       x1 = x0 - d
        
-       x1 = x-(ax+by+c)
-       x1 = (1-a)x -by -c
+       x1 = x0 - (a x0 + b y + c)
+       x1 = (1-a) x0 - b y - c
        
-       im1 -> im0
-       (1-a)x = x1 + by + c
-       x = 1/(1-a) x1 + b/(1-a) y + c/(1-a)
+       im1 -> im0:
+       (1-a) x0 = x1 + b y + c
+       x0 = 1/(1-a) x1 + b/(1-a) y + c/(1-a)
     */
 
     dgx = 1/(1-a) - 1;
@@ -498,7 +502,10 @@ void myImDiff3(Mat a, Mat b, Mat &d)
     }
 }
 
-void boxFilter(Mat src, Mat &dst, int n) {
+void boxFilter(Mat src, Ma
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+t &dst, int n) {
     blur(src, dst, Size(n, n), Point(-1, -1));
 }
 
@@ -575,7 +582,10 @@ void printinfo(Mat img)
     double min, max;
     cv::minMaxLoc(img, &min, &max);
     printf("width=%d, height=%d, channels=%d, pixel type: ",
-	   img.cols, img.rows, img.channels());
+	   img.cols, img.r
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+ows, img.channels());
 	
     switch(img.depth()) {
     case CV_8U:	 printf("CV_8U  -  8-bit unsigned int (0..255)\n"); break;
@@ -662,7 +672,10 @@ void imdiff()
 	
     // perform tranformation on the entire image and then 
     // crop the smaller window from the transformed image
-    // less efficient, but difference in performance isn't 
+    // less efficient, but
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+ difference in performance isn't 
     // very noticeable
     Mat wim1T, im1T;
     wim1T = oim1.clone();
@@ -758,6 +771,9 @@ void sumChannels (Mat src, Mat &dst){
     //split the images into 3 1 channel images
     split(src, srcSplit);
 
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+
     //sum the individual channels up
     for(int i=0; i < 3; ++i){
 	Mat srcF;
@@ -831,7 +847,10 @@ void computeConf()
 
 	    cm_diff_C1 /= 3.0;
 	    cp_diff_C1 /= 3.0;
-	    corr_c_image_C1 /= 3.0;
+	    corr_c_image_C
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+1 /= 3.0;
 	    corr_cm_image_C1 /= 3.0;
 	    corr_cp_image_C1 /= 3.0;
 	}
@@ -874,7 +893,10 @@ void computeConf()
 	min_diff.convertTo(min_diff, CV_8U, 255);
 	pyrConf[i] = min_diff;
     }	
-    //display the confidence measure in a new window
+    //display the confiden
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+ce measure in a new window
     Mat im = pyrImg(pyrConf);
     imshow(winConf, im * confScale * 10);
 }
@@ -1216,7 +1238,10 @@ int main(int argc, char ** argv)
 	if (downsample > 1) {
 	    double f = 1.0/downsample;
 	    resize(oim0, oim0, Size(), f, f, INTER_AREA);
-	    resize(oim1, oim1, Size(), f, f, INTER_AREA);
+	    resize(oim1, o
+    // TODO: make sure it's a valid plane file, e.g. first string is "id"
+    // in case user specifies .pfm by mistake...
+im1, Size(), f, f, INTER_AREA);
 	}
 
 	// crop region in images if too big
