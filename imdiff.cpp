@@ -178,14 +178,15 @@ void readPlanesFromFile(string filePath){
     float a, b, c;
     string columnLabel; //holds column headers
 
-    // TODO: make sure it's a valid plane file, e.g. first string is "id"
-    // in case user specifies .pfm by mistake...
-
     //cout << "Plane Descriptors: "; //print column headers
     //read in & print column headers
     for(int i = 0; i < 9; ++i){ 
     	file >> columnLabel;
     	//cout << columnLabel << " ";
+	if (i==0 && (columnLabel != string("id"))) {
+	    fprintf(stderr, "invalid plane equations file %s\n", filePath.c_str());
+	    exit(1); 
+	}
     }
     //cout << endl;
 
