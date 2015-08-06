@@ -61,7 +61,11 @@ int ReadFilePFM(Mat &im, string path){
     // create fstream object to read in pfm file 
     // open the file in binary
     fstream file(path.c_str(), ios::in | ios::binary);
-    
+    if (file == NULL) {
+        fprintf(stderr, "cannot read image %s\n", path.c_str());
+	exit(1); 
+    }
+
     // init variables 
     string bands;           // what type is the image   "Pf" = grayscale    (1-band)
                             //                          "PF" = color        (3-band)
@@ -80,12 +84,12 @@ int ReadFilePFM(Mat &im, string path){
     int littleEndianMachine = littleendian();
     int needSwap = (littleEndianFile != littleEndianMachine);
 
-    cout << setfill('=') << setw(19) << "=" << endl;
-    cout << "Reading image to pfm file: " << path << endl;
-    cout << "Little Endian?: "  << ((needSwap) ? "false" : "true")   << endl;
-    cout << "width: "           << width                             << endl;
-    cout << "height: "          << height                            << endl;
-    cout << "scale: "           << scalef                            << endl;
+    //cout << setfill('=') << setw(19) << "=" << endl;
+    //cout << "Reading image to pfm file: " << path << endl;
+    //cout << "Little Endian?: "  << ((needSwap) ? "false" : "true")   << endl;
+    //cout << "width: "           << width                             << endl;
+    //cout << "height: "          << height                            << endl;
+    //cout << "scale: "           << scalef                            << endl;
 
     // skip SINGLE newline character after reading third arg
     char c = file.get();
@@ -103,8 +107,8 @@ int ReadFilePFM(Mat &im, string path){
     }
     
     if(bands == "Pf"){          // handle 1-band image 
-        cout << "Reading grayscale image (1-band)" << endl; 
-        cout << "Reading into CV_32FC1 image" << endl;
+        //cout << "Reading grayscale image (1-band)" << endl; 
+        //cout << "Reading into CV_32FC1 image" << endl;
         im = Mat::zeros(height, width, CV_32FC1);
         for (int i=height-1; i >= 0; --i) {
             for(int j=0; j < width; ++j){
@@ -116,8 +120,8 @@ int ReadFilePFM(Mat &im, string path){
             }
         }
     }else if(bands == "PF"){    // handle 3-band image
-        cout << "Reading color image (3-band)" << endl;
-        cout << "Reading into CV_32FC3 image" << endl; 
+        //cout << "Reading color image (3-band)" << endl;
+        //cout << "Reading into CV_32FC3 image" << endl; 
         im = Mat::zeros(height, width, CV_32FC3);
         for (int i=height-1; i >= 0; --i) {
             for(int j=0; j < width; ++j){
@@ -134,7 +138,7 @@ int ReadFilePFM(Mat &im, string path){
         cout << "unknown bands description";
         return -1;
     }
-    cout << setfill('=') << setw(19) << "=" << endl << endl;
+    //cout << setfill('=') << setw(19) << "=" << endl << endl;
     return 0;
 }
 

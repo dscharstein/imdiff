@@ -2,6 +2,7 @@ Debug/
 Release/
 ipch/
 x64/
+test/
 *~
 *sdf
 *.suo

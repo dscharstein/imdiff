@@ -63,8 +63,5 @@ The pfm reader can also be downloaded separately from github via
 
 `git clone https://github.com/dscharstein/pfmLib.git`
 
-### Known bugs:
-	-translation of warped by plane images are off by several pixels 
-
  
 
