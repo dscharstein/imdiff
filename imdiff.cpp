@@ -169,7 +169,7 @@ void readPlanesFromFile(string filePath){
     // create fstream object to read in planeEqns file 
     // open the file in binary
     fstream file(filePath.c_str(), ios::in | ios::binary);
-    if (file == NULL) {
+    if (!file) {
         fprintf(stderr, "cannot read plane file %s\n", filePath.c_str());
 	exit(1); 
     }
@@ -1070,13 +1070,13 @@ void mainLoop()
 	case 'v': // increase step
 	    step *= 2; imdiff(); break;
 	case 'o': // increase x disp gradient
-	    dgx += 0.1 * step; imdiff(); break;
+	    dgx += (float)(0.1 * step); imdiff(); break;
 	case 'p': // decrease x disp gradient
-	    dgx -= 0.1 * step; imdiff(); break;
+	    dgx -= (float)(0.1 * step); imdiff(); break;
 	case '[': // increase y disp gradient
-	    dgy += 0.1 * step; imdiff(); break;
+	    dgy += (float)(0.1 * step); imdiff(); break;
 	case ']': // decrease y disp gradient
-	    dgy -= 0.1 * step; imdiff(); break;
+	    dgy -= (float)(0.1 * step); imdiff(); break;
 	case ' ': // reset
 	    dx = 0; dy = 0; dgx = 0; dgy = 0; diffscale = 1; nccsize = 3; imdiff(); break;
 	case 'a': // show original left image

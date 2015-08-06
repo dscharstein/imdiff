@@ -61,7 +61,7 @@ int ReadFilePFM(Mat &im, string path){
     // create fstream object to read in pfm file 
     // open the file in binary
     fstream file(path.c_str(), ios::in | ios::binary);
-    if (file == NULL) {
+    if (!file) {
         fprintf(stderr, "cannot read image %s\n", path.c_str());
 	exit(1); 
     }
