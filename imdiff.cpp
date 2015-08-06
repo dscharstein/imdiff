@@ -663,8 +663,7 @@ void imdiff()
 	
     // perform tranformation on the entire image and then 
     // crop the smaller window from the transformed image
-    // less efficient, but
- difference in performance isn't 
+    // less efficient, but difference in performance isn't 
     // very noticeable
     Mat wim1T, im1T;
     wim1T = oim1.clone();
