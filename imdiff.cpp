@@ -132,11 +132,12 @@ int pixshift = 1; // amount (in pixels) to shift the image by
 void printhelp()
 {
     printf(
-	   "drag to change offset, shift-drag for fine control\n"
-	   "control-drag to restrict motion in X only\n"
+	   "drag to change horizontal offset, shift-drag for fine control\n"
+	   "control-drag to allow vertical motion too\n"
 	   "arrows: change offset by stepsize\n"
 	   "C, V  - change step size\n"
-	   "O, P  - change disp x gradient\n"
+	   "O, P  - change disp x gradient by stepsize/10\n"
+	   "[, ]  - change disp y gradientby stepsize/10\n"
 	   "Space - reset offset\n"
 	   "A, S  - show (blink) orig images\n"
 	   "D     - show diff\n"
@@ -719,7 +720,7 @@ static void onMouse( int event, int x, int y, int flags, void *param)
 	//} else if (event == CV_EVENT_LBUTTONUP) {
 	//	imdiff();
     } else if (event == CV_EVENT_MOUSEMOVE && flags & CV_EVENT_FLAG_LBUTTON) {
-	xonly = flags & CV_EVENT_FLAG_CTRLKEY;  // xonly motion if Control is down
+	xonly = !(flags & CV_EVENT_FLAG_CTRLKEY);  // xonly motion UNLESS Control is down
 	dx = ds*x - startx;
 	if (!xonly)
 	    dy = ds*y - starty;
@@ -1069,13 +1070,13 @@ void mainLoop()
 	case 'v': // increase step
 	    step *= 2; imdiff(); break;
 	case 'o': // increase x disp gradient
-	    dgx += 0.02f; imdiff(); break;
+	    dgx += 0.1 * step; imdiff(); break;
 	case 'p': // decrease x disp gradient
-	    dgx -= 0.02f; imdiff(); break;
+	    dgx -= 0.1 * step; imdiff(); break;
 	case '[': // increase y disp gradient
-	    dgy += 0.02f; imdiff(); break;
+	    dgy += 0.1 * step; imdiff(); break;
 	case ']': // decrease y disp gradient
-	    dgy -= 0.02f; imdiff(); break;
+	    dgy -= 0.1 * step; imdiff(); break;
 	case ' ': // reset
 	    dx = 0; dy = 0; dgx = 0; dgy = 0; diffscale = 1; nccsize = 3; imdiff(); break;
 	case 'a': // show original left image
@@ -1201,7 +1202,7 @@ int main(int argc, char ** argv)
 			ReadFilePFM(gtd, arg.substr(found+ground_truth.size()));
 			warpByGT(oim1, oim1_gtd_warped, gtd, occmask);
 		    }else if(match_string == occ_mask){
-			occmask = imread(arg.substr(found+occ_mask.size()));
+			occmask = readIm(arg.substr(found+occ_mask.size()).c_str());
 		    }else if(match_string == deci_fact){
 			downsample = atoi(arg.substr(found+deci_fact.size()).c_str());
 		    }else if(match_string == off_x){
