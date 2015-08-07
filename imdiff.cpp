@@ -6,7 +6,7 @@
  * added computation on image pyramids 6/18/2013
  * made to compile on Macs and Linux 6/4/2015
  * added confidence computation and GT image warping (Matt & Bianca) July 2015
- * fixed plane warping 8/6/15
+ * fixed plane warping, added slant control by right-dragging 8/6/15
  */
 
 /* This visual studio project requires two windows environment variables to be set.  Example:
@@ -100,7 +100,6 @@ const char *modestr[nmodes] = {
 
 const char *win = "imdiff";
 const char *winConf = "Confidence";
-const char *winWarp = "Warped";
 const char *selectedWin;	// currently selected window
 vector<Plane> planes;
 int selected_plane_id; 	//the plane the user selected for plane warping
@@ -119,7 +118,10 @@ float ds = 1;  // motion control multiplier
 int xonly = 0; // constrain motion in x dir
 float startx;
 float starty;
+float startdx;
 float startdy;
+float startdgx;
+float startdgy;
 float diffscale = 1;
 float confScale = 1;
 float step = 1;    // arrow key step size
@@ -134,6 +136,7 @@ void printhelp()
     printf(
 	   "drag to change horizontal offset, shift-drag for fine control\n"
 	   "control-drag to allow vertical motion too\n"
+	   "right-drag to change disparity x and y gradient, shift-drag for fine control\n"
 	   "arrows: change offset by stepsize\n"
 	   "C, V  - change step size\n"
 	   "O, P  - change disp x gradient by stepsize/10\n"
@@ -699,33 +702,56 @@ static void onMouse( int event, int x, int y, int flags, void *param)
     const char* winID = (const char*)param;
     if(winID == win){
 	selectedWin = win;
-    }else if(winID == winConf){
+    }
+    else if (winID == winConf){
 	selectedWin = winConf;
-	return;
-    }else if(winID == winWarp){
-	selectedWin = winWarp;
 	return;
     }
 
     x = (short)x; // seem to be short values passed in, cast needed for negative values during dragging
     y = (short)y;
+    x += roi.x;  // compensate for cropped region
+    y += roi.y;
     //printf("x=%d y=%d    ", x, y);
     //printf("dx=%g dy=%g\n", dx, dy);
     if (event == CV_EVENT_LBUTTONDOWN) {
 	ds = (float)((flags & CV_EVENT_FLAG_SHIFTKEY) ? 0.1 : 1.0); // fine motion control if Shift is down
-	xonly = flags & CV_EVENT_FLAG_CTRLKEY;  // xonly motion if Control is down
+	xonly = !(flags & CV_EVENT_FLAG_CTRLKEY);  // xonly motion UNLESS Control is down
+
 	startx = ds*x - dx;
 	starty = ds*y - dy;
 	startdy = dy;
 	//} else if (event == CV_EVENT_LBUTTONUP) {
 	//	imdiff();
-    } else if (event == CV_EVENT_MOUSEMOVE && flags & CV_EVENT_FLAG_LBUTTON) {
+    }
+    else if (event == CV_EVENT_MOUSEMOVE && flags & CV_EVENT_FLAG_LBUTTON) {
 	xonly = !(flags & CV_EVENT_FLAG_CTRLKEY);  // xonly motion UNLESS Control is down
 	dx = ds*x - startx;
 	if (!xonly)
 	    dy = ds*y - starty;
 	else
 	    dy = startdy;
+	if (!cygwinbug)
+	    imdiff();
+    }
+
+    // for right-click and drag, change dgx, dgy
+    else if (event == CV_EVENT_RBUTTONDOWN) {
+	ds = (float)((flags & CV_EVENT_FLAG_SHIFTKEY) ? 0.001 : 0.01); // fine motion control if Shift is down
+	startx = (float)x;
+	starty = (float)y;
+	startdx = dx;
+	startdy = dy;
+	startdgx = dgx;
+	startdgy = dgy;
+    }
+    else if (event == CV_EVENT_MOUSEMOVE && flags & CV_EVENT_FLAG_RBUTTON) {
+	float mx = ds * (x - startx);
+	float my = ds * (y - starty);
+	float tx = (float)((startx - startdgy * starty - startdx) / (1 + startdgx));
+	dgx = startdgx + mx;
+	dgy = startdgy + my;
+	dx = startdx - (dgx - startdgx) * tx - (dgy - startdgy) * starty;
 	if (!cygwinbug)
 	    imdiff();
     }
