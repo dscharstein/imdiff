@@ -19,12 +19,15 @@ The user can select between several methods of computing the matching cost betwe
 
 | Key           | Effect                                   |
 |---------------|------------------------------------------|
-|drag           |change offset                             |
+|drag           |change horizontal offset                  |
 |shift-drag     |fine control                              |
-|control-drag   |restrict motion in X only                 |
+|control-drag   |allow vertical offset too                 |
+|right-drag     |change disp x and y gradient              |
+|shift-right-drag |fine control                              |
 |arrows         |change offset by stepsize                 |
-|C, V           |change step size                          |
-|O, P           |change disp x gradient                    |
+|C, V �         |change step size                          |
+|O, P��         |change disp x gradient                    |
+|[, ]��         |change disp y gradient                    |
 |Space          |reset offset                              |
 |A, S           |show (blink) orig images                  |
 |D              |show diff                                 |

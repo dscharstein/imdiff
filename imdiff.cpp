@@ -23,7 +23,7 @@
 
 // set to 1 if running on cygwin - turns off mouse motion animation, o/w crashes on cygwin
 int cygwinbug = 0; // no longer necessary, I use cygwin opencv build from 
-                   // http://hvrl.ics.keio.ac.jp/kimura/opencv/
+// http://hvrl.ics.keio.ac.jp/kimura/opencv/
 
 #include <stdio.h>
 #include "opencv2/opencv.hpp"
@@ -48,7 +48,7 @@ struct Plane {
     float a, b, c;
 
     // default constructor
-    Plane(){
+    Plane() {
 	id = 0;
 	xmin = 0;
 	xmax = 0;
@@ -61,9 +61,9 @@ struct Plane {
     }
 
     // constructor for plane
-    Plane(	int init_id, int init_xmin, int init_xmax, 
-		int init_ymin, int init_ymax, int init_npts, 
-		float init_a, float init_b, float init_c){
+    Plane(int init_id, int init_xmin, int init_xmax,
+	int init_ymin, int init_ymax, int init_npts,
+	float init_a, float init_b, float init_c) {
 
 	id = init_id;
 	xmin = init_xmin;
@@ -74,7 +74,7 @@ struct Plane {
 	a = init_a;
 	b = init_b;
 	c = init_c;
-    } 
+    }
 };
 
 
@@ -96,7 +96,7 @@ const char *modestr[nmodes] = {
     "diff",  // color diff 
     "NCC",
     "ICPR",  // ICPR 94 gradient diff
-    "Bleyer"}; // 0.1 * color diff + 0.9 * gradient diff
+    "Bleyer" }; // 0.1 * color diff + 0.9 * gradient diff
 
 const char *win = "imdiff";
 const char *winConf = "Confidence";
@@ -130,51 +130,51 @@ float ncceps = 1e-2f;
 int aggrsize = 1;
 int diffmin = 0; // 0 or 128 to clip negative response
 int pixshift = 1; // amount (in pixels) to shift the image by 
+float zoom = 1.0f;
 
 void printhelp()
 {
     printf(
-	   "drag to change horizontal offset, shift-drag for fine control\n"
-	   "control-drag to allow vertical motion too\n"
-	   "right-drag to change disparity x and y gradient, shift-drag for fine control\n"
-	   "arrows: change offset by stepsize\n"
-	   "C, V  - change step size\n"
-	   "O, P  - change disp x gradient by stepsize/10\n"
-	   "[, ]  - change disp y gradientby stepsize/10\n"
-	   "Space - reset offset\n"
-	   "A, S  - show (blink) orig images\n"
-	   "D     - show diff\n"
-	   "W 	   - toggle GT warped image 2\n"
-	   "+     - show confidence measure\n"
-	   "=     - warp by selected plane (default=0)\n"
-	   "/     - toggle bounding box for plane\n"
-	   "<, >  - cycle through planes\n"
-	   "Y, U  - confidence contrast\n"
-	   "1-4 - change mode:\n"
-	   "  1 - color diff\n"
-	   "  2 - NCC\n"
-	   "  3 - ICPR cost\n"
-	   "  4 - Bleyer cost\n"
-	   "B     - toggle clipping at 0 (modes 2-4)\n"
-	   "Z, X  - change diff contrast (mode 1)\n"
-	   "E, R  - change NCC epsilon (mode 2)\n"
-	   "N, M  - change NCC window size (mode 2)\n"
-	   "F, G  - change aggregation window size (modes 2-4)\n"
-	   "JKLI  - move cropped region (large imgs only)\n"
-	   "H , ? - help\n"
-	   "(-)   - close current window\n"
-	   "Esc, Q - quit\n");
+	"drag to change horizontal offset, shift-drag for fine control\n"
+	"control-drag to allow vertical motion too\n"
+	"right-drag to change disparity x and y gradient, shift-drag for fine control\n"
+	"arrows: change offset by stepsize\n"
+	"C, V  - change step size\n"
+	"O, P  - change disp x gradient by stepsize/10\n"
+	"[, ]  - change disp y gradientby stepsize/10\n"
+	"Space - reset offset\n"
+	"A, S  - show (blink) orig images\n"
+	"D     - show diff\n"
+	"W 	   - toggle GT warped image 2\n"
+	"+     - show confidence measure\n"
+	"=     - warp by selected plane (default=0)\n"
+	"/     - toggle bounding box for plane\n"
+	"<, >  - cycle through planes\n"
+	"Y, U  - confidence contrast\n"
+	"1-4 - change mode:\n"
+	"  1 - color diff\n"
+	"  2 - NCC\n"
+	"  3 - ICPR cost\n"
+	"  4 - Bleyer cost\n"
+	"B     - toggle clipping at 0 (modes 2-4)\n"
+	"Z, X  - change diff contrast (mode 1)\n"
+	"E, R  - change NCC epsilon (mode 2)\n"
+	"N, M  - change NCC window size (mode 2)\n"
+	"F, G  - change aggregation window size (modes 2-4)\n"
+	"JKLI  - move cropped region (large imgs only)\n"
+	"H , ? - help\n"
+	"(-)   - close current window\n"
+	"Esc, Q - quit\n");
 }
 
-//read in planes from text file of format produced by 
-//planefinder
-void readPlanesFromFile(string filePath){
+// read in planes from text file of format produced by planefinder
+void readPlanesFromFile(string filePath, int downsample) {
     // create fstream object to read in planeEqns file 
     // open the file in binary
     fstream file(filePath.c_str(), ios::in | ios::binary);
     if (!file) {
-        fprintf(stderr, "cannot read plane file %s\n", filePath.c_str());
-	exit(1); 
+	fprintf(stderr, "cannot read plane file %s\n", filePath.c_str());
+	exit(1);
     }
 
     //variables to hold the plane info
@@ -184,41 +184,42 @@ void readPlanesFromFile(string filePath){
 
     //cout << "Plane Descriptors: "; //print column headers
     //read in & print column headers
-    for(int i = 0; i < 9; ++i){ 
-    	file >> columnLabel;
-    	//cout << columnLabel << " ";
-	if (i==0 && (columnLabel != string("id"))) {
+    for (int i = 0; i < 9; ++i) {
+	file >> columnLabel;
+	//cout << columnLabel << " ";
+	if (i == 0 && (columnLabel != string("id"))) {
 	    fprintf(stderr, "invalid plane equations file %s\n", filePath.c_str());
-	    exit(1); 
+	    exit(1);
 	}
     }
     //cout << endl;
 
     //read in all plane information for all planes
     //stop when end of file reached.
-    while(true){
-    	file >> id;
-    	file >> xmin;
-    	file >> xmax;
-    	file >> ymin;
-    	file >> ymax;
-    	file >> npts;
-    	file >> a;
-    	file >> b;
-    	file >> c;
+    while (true) {
+	file >> id;
+	file >> xmin;
+	file >> xmax;
+	file >> ymin;
+	file >> ymax;
+	file >> npts;
+	file >> a;
+	file >> b;
+	file >> c;
 
-    	//printf("plane: %d, a = %f, b = %f, c = %f\n", id, a, b, c);
+	//printf("plane: %d, a = %f, b = %f, c = %f\n", id, a, b, c);
 
-    	if( file.eof() ) break; //stop at end of file
+	if (file.eof()) break; //stop at end of file
 
-    	//create a plane:
-    	Plane p(id, xmin, xmax, ymin, ymax, npts, a, b, c);
-    	planes.push_back(p); //store in the planes vector
+	double f = 1.0 / downsample;
+	//create a plane:
+	Plane p(id, (int)(f*xmin), (int)(f*xmax), (int)(f*ymin), (int)(f*ymax), npts, a, b, (float)(f*c));
+	planes.push_back(p); //store in the planes vector
     }
     cout << "Read in " << planes.size() << " planes from " << filePath << endl;
 }
 
-void drawBounding(Mat &src, float scale){
+void drawBounding(Mat &src, float scale) {
     Plane p = planes[selected_plane_id];
     Point upper_left((int)((p.xmin - roi.x)*scale), (int)((p.ymax - roi.y)*scale));
     Point lower_left((int)((p.xmin - roi.x)*scale), (int)((p.ymin - roi.y)*scale));
@@ -238,9 +239,9 @@ void drawBounding(Mat &src, float scale){
 // taken from Daniel's warp.cpp
 int linearInterpi(float fx, float fy, int v00, int v01, int v10, int v11)
 {
-    float w00 = (1-fx)*(1-fy);
-    float w01 = (1-fx)*fy;
-    float w10 = fx*(1-fy);
+    float w00 = (1 - fx)*(1 - fy);
+    float w01 = (1 - fx)*fy;
+    float w10 = fx*(1 - fy);
     float w11 = fx*fy;
 
     float v = w00 * v00 + w01 * v01 + w10 * v10 + w11 * v11;
@@ -250,63 +251,63 @@ int linearInterpi(float fx, float fy, int v00, int v01, int v10, int v11)
 
 // added by Matt Stanley & Bianca Messner 2015-07-15
 // warps an image by its ground truth disparities
-void warpImageInv(Mat src, Mat &dst, Mat dispx, float scalex=1.0)
+void warpImageInv(Mat src, Mat &dst, Mat dispx, float scalex = 1.0)
 {
     // get dimensions and type of src image
     int width = src.size().width, height = src.size().height;
-    int type = src.type();	
+    int type = src.type();
     int nB = src.channels();
 
     // make sure src image is a color image									
-    if(nB != 3)
-	{
-	    cout << "expected color image" << endl;
-	    return;
-	}
+    if (nB != 3)
+    {
+	cout << "expected color image" << endl;
+	return;
+    }
 
     // initialize the dst image to be bright pink
     dst = Mat(height, width, type, Scalar(255, 128, 255));
 
-	
+
     int n = 0;
     // begin pixel loop
     for (int y = 0; y < height; ++y)	// rows
+    {
+	for (int x = 0; x < width; ++x)	// cols
 	{
-	    for (int x = 0; x < width; ++x)	// cols
-		{
-		    float dx = scalex * dispx.at<float>(y, x); // index into dispx using (row, col)=(y, x)
+	    float dx = scalex * dispx.at<float>(y, x); // index into dispx using (row, col)=(y, x)
 
-		    if(dx == UNK)
-			continue;
-		    n++;
+	    if (dx == UNK)
+		continue;
+	    n++;
 
-		    float xx = x + dx;
-		    float yy = (float)y;
+	    float xx = x + dx;
+	    float yy = (float)y;
 
-		    int ixr = (int)round(xx);
-		    int iyr = (int)round(yy);
+	    int ixr = (int)round(xx);
+	    int iyr = (int)round(yy);
 
-		    if(ixr < 0 || ixr >= width || iyr < 0 || iyr >= height)
-			continue;
+	    if (ixr < 0 || ixr >= width || iyr < 0 || iyr >= height)
+		continue;
 
-		    int ix0 = max(0, (int)floor(xx));
-		    int iy0 = max(0, (int)floor(yy));
-		    int ix1 = min(width-1, ix0+1);
-		    int iy1 = min(height-1, iy0+1);
+	    int ix0 = max(0, (int)floor(xx));
+	    int iy0 = max(0, (int)floor(yy));
+	    int ix1 = min(width - 1, ix0 + 1);
+	    int iy1 = min(height - 1, iy0 + 1);
 
-		    float fx = xx - ix0;
-		    float fy = yy - iy0;
+	    float fx = xx - ix0;
+	    float fy = yy - iy0;
 
-		    for(int b = 0; b < nB; ++b){
-			dst.at<Vec3b>(y,x)[b] = linearInterpi(fx, fy,
-							      src.at<Vec3b>(iy0, ix0)[b],
-							      src.at<Vec3b>(iy1, ix0)[b],
-							      src.at<Vec3b>(iy0, ix1)[b],
-							      src.at<Vec3b>(iy1, ix1)[b]
-							      );
-		    }
-		}
+	    for (int b = 0; b < nB; ++b) {
+		dst.at<Vec3b>(y, x)[b] = linearInterpi(fx, fy,
+		    src.at<Vec3b>(iy0, ix0)[b],
+		    src.at<Vec3b>(iy1, ix0)[b],
+		    src.at<Vec3b>(iy0, ix1)[b],
+		    src.at<Vec3b>(iy1, ix1)[b]
+		    );
+	    }
 	}
+    }
     // end pixel loop
 }
 
@@ -314,19 +315,19 @@ void warpImageInv(Mat src, Mat &dst, Mat dispx, float scalex=1.0)
 // added by Matt Stanley & Bianca Messner 2015-07-15
 // warps an image by its ground truth disparities
 // uses opencv's remap() function
-void warpImageRemap(Mat src, Mat &dst, Mat dispx, float scalex=1.0)
+void warpImageRemap(Mat src, Mat &dst, Mat dispx, float scalex = 1.0)
 {
     // get dimensions and type of src image
     int width = src.size().width, height = src.size().height;
-    int type = src.type();	
+    int type = src.type();
     int nB = src.channels();
 
     // make sure src image is a color image									
-    if(nB != 3)
-	{
-	    cout << "expected color image" << endl;
-	    return;
-	}
+    if (nB != 3)
+    {
+	cout << "expected color image" << endl;
+	return;
+    }
 
     Mat map = Mat_<Point_<float> >(height, width);
     // initialize the dst image to be bright pink
@@ -336,18 +337,18 @@ void warpImageRemap(Mat src, Mat &dst, Mat dispx, float scalex=1.0)
     float gtValue;
 
     // begin building map
-    for(int i=0; i<height; ++i)
+    for (int i = 0; i < height; ++i)
+    {
+	for (int j = 0; j < width; ++j)
 	{
-	    for (int j=0; j < width; ++j)
-		{
-		    gtValue = scalex * (dispx.at<float>(i, j));
-		    if (!((j+gtValue) > width)){ // if not out of bounds...
-			map.at<Point_<float> >(i, j) = Point((int)(j+gtValue), i); //store the coordinates of the point in the 
-			//source image that contains the pixel we want in
-			//the destination image
-		    }
-		}
+	    gtValue = scalex * (dispx.at<float>(i, j));
+	    if (!((j + gtValue) > width)) { // if not out of bounds...
+		map.at<Point_<float> >(i, j) = Point((int)(j + gtValue), i); //store the coordinates of the point in the 
+		//source image that contains the pixel we want in
+		//the destination image
+	    }
 	}
+    }
     // end building map
     remap(src, dst, map, emptyMap, INTER_LINEAR);
 }
@@ -359,12 +360,12 @@ void warpImageRemap(Mat src, Mat &dst, Mat dispx, float scalex=1.0)
 void maskOccluded(Mat src, Mat &dst, Mat occlusionmask) {
     // get src image dimensions
     int width = src.size().width, height = src.size().height;
-    int type = src.type();	
+    int type = src.type();
 
     // create a mask for non-occluded areas and
     // occluded areas (both half and full)
-    Mat nonOccMask = (occlusionmask == 255)/255;
-    Mat occAreaMask = (occlusionmask != 255)/255;
+    Mat nonOccMask = (occlusionmask == 255) / 255;
+    Mat occAreaMask = (occlusionmask != 255) / 255;
 
     // cut out colored pieces in the occluded areas
     Mat colorMat = Mat(height, width, type, Scalar(255, 255, 255));
@@ -381,13 +382,13 @@ void maskOccluded(Mat src, Mat &dst, Mat occlusionmask) {
 //added by Matt Stanley & Bianca Messner 7/10/2015
 void warpByGT(Mat src, Mat &dst, Mat gtd, Mat occlusion_mask)
 {
-    if(gtd.empty()){
+    if (gtd.empty()) {
 	cout << "No Ground Truth image specified" << endl;
 	return;
     }
     dst = Mat::zeros(src.size().height, src.size().width, src.type());
     warpImageInv(src, dst, gtd, -1);
-    if(!occlusion_mask.empty()){
+    if (!occlusion_mask.empty()) {
 	maskOccluded(dst, dst, occlusion_mask);
     }
 }
@@ -395,7 +396,7 @@ void warpByGT(Mat src, Mat &dst, Mat gtd, Mat occlusion_mask)
 // added by Bianca Messner & Matt Stanley 2015-07-20
 // fixed 8/6/2015 to use inverse since plane is wrt im0 and we're warping im1!
 //warps an image by a plane
-void planeWarp(){
+void planeWarp() {
     //get plane parameters from global user-selected plane
     float a = planes[selected_plane_id].a;
     float b = planes[selected_plane_id].b;
@@ -405,18 +406,18 @@ void planeWarp(){
        im0 -> im1:
        d = a x0 + b y + c
        x1 = x0 - d
-       
+
        x1 = x0 - (a x0 + b y + c)
        x1 = (1-a) x0 - b y - c
-       
+
        im1 -> im0:
        (1-a) x0 = x1 + b y + c
        x0 = 1/(1-a) x1 + b/(1-a) y + c/(1-a)
-    */
+       */
 
-    dgx = 1/(1-a) - 1;
-    dgy = b/(1-a);
-    dx = c/(1-a);
+    dgx = 1 / (1 - a) - 1;
+    dgy = b / (1 - a);
+    dx = c / (1 - a);
 }
 
 void computeGradientX(Mat img, Mat &gx)
@@ -431,7 +432,7 @@ void computeGradientY(Mat img, Mat &gy)
     Sobel(img, gy, gdepth, 0, 1, 3, 1, 0);
 }
 
-void computeGradients(Mat img, Mat &gx, Mat &gy, Mat &gm) 
+void computeGradients(Mat img, Mat &gx, Mat &gy, Mat &gm)
 {
     computeGradientX(img, gx);
     computeGradientY(img, gy);
@@ -446,20 +447,22 @@ void info(Mat imd)
     char txt[100];
     char txt3[100];
     if (mode == 0) { // color diff
-	sprintf_s(txt, 100, "1-diff * %.1f  dx=%4.2f dy=%4.2f dgx=%4.5f dgy=%4.5f step=%3.1f", 
-		  diffscale, dx, dy, dgx, dgy, step);
-    } else if (mode == 1) { // NCC
-	sprintf_s(txt, 100, "2-NCC %dx%d dx=%4.2f dy=%4.2f dgx=%4.5f dgy=%4.5f step=%3.1f aggr %dx%d ncceps=%5g", 
-		  nccsize, nccsize, dx, dy, dgx, dgy, step, aggrsize, aggrsize, ncceps);
-    } else {
-	sprintf_s(txt, 100, "%d-%s dx=%4.2f dy=%4.2f dgx=%4.5f dgy=%4.5f step=%3.1f aggr %dx%d", 
-		  mode+1, modestr[mode], dx, dy, dgx, dgy, step, aggrsize, aggrsize);
+	sprintf_s(txt, 100, "1-diff * %.1f  dx=%4.2f dy=%4.2f dgx=%4.5f dgy=%4.5f step=%3.1f",
+	    diffscale, dx, dy, dgx, dgy, step);
+    }
+    else if (mode == 1) { // NCC
+	sprintf_s(txt, 100, "2-NCC %dx%d dx=%4.2f dy=%4.2f dgx=%4.5f dgy=%4.5f step=%3.1f aggr %dx%d ncceps=%5g",
+	    nccsize, nccsize, dx, dy, dgx, dgy, step, aggrsize, aggrsize, ncceps);
+    }
+    else {
+	sprintf_s(txt, 100, "%d-%s dx=%4.2f dy=%4.2f dgx=%4.5f dgy=%4.5f step=%3.1f aggr %dx%d",
+	    mode + 1, modestr[mode], dx, dy, dgx, dgy, step, aggrsize, aggrsize);
     }
     sprintf_s(txt3, 100, "Plane I.D.= %d confScale= %.1f (x10)", selected_plane_id, confScale);
-    putText(imd, txt, Point(5, imd.rows-15), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
+    putText(imd, txt, Point(5, imd.rows - 15), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
     const char *txt2 = "C/V:step  O/P:dgx  Z/X:contrast  N/M:nccsize  E/R:ncceps  F/G:aggr  ?:help  Q:quit";
-    putText(imd, txt2, Point(5, imd.rows-2), FONT_HERSHEY_PLAIN, 0.8, Scalar(120, 180, 180));
-    putText(imd, txt3, Point(650, imd.rows-15), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
+    putText(imd, txt2, Point(5, imd.rows - 2), FONT_HERSHEY_PLAIN, 0.8, Scalar(120, 180, 180));
+    putText(imd, txt3, Point(650, imd.rows - 15), FONT_HERSHEY_PLAIN, 0.8, Scalar(200, 255, 255));
 }
 
 void myImDiff2(Mat a, Mat b, Mat &d)
@@ -469,11 +472,11 @@ void myImDiff2(Mat a, Mat b, Mat &d)
 
 void myImDiff(Mat a, Mat b, Mat &d)
 {
-    if (! d.data || d.rows != a.rows || d.cols != a.cols)
+    if (!d.data || d.rows != a.rows || d.cols != a.cols)
 	d = a.clone();
     int w = a.cols, h = a.rows, nb = a.channels();
 
-    for (int y=0; y < h; y++) {
+    for (int y = 0; y < h; y++) {
 	for (int x = 0; x < w; x++) {
 	    Vec3b pa = a.at<Vec3b>(y, x);
 	    Vec3b pb = b.at<Vec3b>(y, x);
@@ -488,11 +491,11 @@ void myImDiff(Mat a, Mat b, Mat &d)
 
 void myImDiff3(Mat a, Mat b, Mat &d)
 {
-    if (! d.data || d.rows != a.rows || d.cols != a.cols)
+    if (!d.data || d.rows != a.rows || d.cols != a.cols)
 	d = a.clone();
     int w = a.cols, h = a.rows, nb = a.channels();
 
-    for (int y=0; y < h; y++) {
+    for (int y = 0; y < h; y++) {
 	uchar *pa = a.ptr<uchar>(y);
 	uchar *pb = b.ptr<uchar>(y);
 	uchar *pd = d.ptr<uchar>(y);
@@ -509,15 +512,15 @@ void boxFilter(Mat src, Mat &dst, int n) {
 
 void ncc(Mat L, Mat R, Mat &imd) {
     Mat Lb, Rb;
-    boxFilter(L,  Lb, nccsize);
-    boxFilter(R,  Rb, nccsize);
+    boxFilter(L, Lb, nccsize);
+    boxFilter(R, Rb, nccsize);
     Mat LL = L.mul(L);
     Mat RR = R.mul(R);
     Mat LR = L.mul(R);
     Mat LLb, RRb, LRb;
-    boxFilter(LL,  LLb, nccsize);
-    boxFilter(RR,  RRb, nccsize);
-    boxFilter(LR,  LRb, nccsize);
+    boxFilter(LL, LLb, nccsize);
+    boxFilter(RR, RRb, nccsize);
+    boxFilter(LR, LRb, nccsize);
     Mat LL2 = LLb - Lb.mul(Lb);
     Mat RR2 = RRb - Rb.mul(Rb);
     Mat LR2 = LRb - Lb.mul(Rb);
@@ -531,20 +534,21 @@ void ncc(Mat L, Mat R, Mat &imd) {
 void imdiff(Mat im0, Mat im1, Mat &imd)
 {
     if (mode == 0 || mode >= nmodes) { // difference of images
-	addWeighted(im0, diffscale/2, im1, -diffscale/2, 128, imd);
+	addWeighted(im0, diffscale / 2, im1, -diffscale / 2, 128, imd);
 	//imd = Scalar(128, 128, 128) + diffscale * ((im0 - im1)/2);
 	return;
     }
     Mat im0g, im1g;
-    cvtColor(im0, im0g, CV_BGR2GRAY);  
-    cvtColor(im1, im1g, CV_BGR2GRAY);  
+    cvtColor(im0, im0g, CV_BGR2GRAY);
+    cvtColor(im1, im1g, CV_BGR2GRAY);
 
     if (mode == 1) { // NCC
 	Mat im0gf, im1gf;
 	im0g.convertTo(im0gf, CV_32F);
 	im1g.convertTo(im1gf, CV_32F);
 	ncc(im0gf, im1gf, imd);
-    } else if (mode == 2) { // ICPR gradient measure
+    }
+    else if (mode == 2) { // ICPR gradient measure
 	Mat gx0, gy0, gx1, gy1, gm0, gm1; // gradients
 	computeGradients(im0g, gx0, gy0, gm0);
 	computeGradients(im1g, gx1, gy1, gm1);
@@ -554,7 +558,8 @@ void imdiff(Mat im0, Mat im1, Mat &imd)
 	Mat gmag;
 	magnitude(gx1, gy1, gmag); // magnitude of difference d
 	addWeighted(gm1, 0.5, gmag, -1, 128, imd, CV_8U); // result is s/2 - d
-    } else 	if (mode == 3) { // Bleyer weighted sum of color and gradient diff
+    }
+    else 	if (mode == 3) { // Bleyer weighted sum of color and gradient diff
 	Mat cdiff, gx0, gx1, gdiff;
 	absdiff(im0, im1, cdiff);
 	cvtColor(cdiff, cdiff, CV_BGR2GRAY);
@@ -580,9 +585,9 @@ void printinfo(Mat img)
     double min, max;
     cv::minMaxLoc(img, &min, &max);
     printf("width=%d, height=%d, channels=%d, pixel type: ",
-	   img.cols, img.rows, img.channels());
-	
-    switch(img.depth()) {
+	img.cols, img.rows, img.channels());
+
+    switch (img.depth()) {
     case CV_8U:	 printf("CV_8U  -  8-bit unsigned int (0..255)\n"); break;
     case CV_8S:  printf("CV_8S  -  8-bit signed int (-128..127)\n"); break;
     case CV_16U: printf("CV_16U - 16-bit unsigned int (0..65535)\n"); break;
@@ -596,7 +601,7 @@ void printinfo(Mat img)
 
 }
 
-Mat pyrImg(Pyr pyr) 
+Mat pyrImg(Pyr pyr)
 {
     Mat im = pyr[0];
     //printf("\ncalling pyImg\n");
@@ -604,10 +609,10 @@ Mat pyrImg(Pyr pyr)
     //printf("\n");
 
     int w = im.cols, h = im.rows;
-    Mat pim(Size(3*w/2+4, h+30), im.type(), Scalar(30, 10, 10));
+    Mat pim(Size(3 * w / 2 + 4, h + 30), im.type(), Scalar(30, 10, 10));
     im.copyTo(pim(Rect(0, 0, w, h)));
 
-    int x = w+2;
+    int x = w + 2;
     int y = 0;
     for (int i = 1; i < (int)pyr.size(); i++) {
 	int w1 = pyr[i].cols, h1 = pyr[i].rows;
@@ -632,7 +637,7 @@ void dispPyr(const char *window, Pyr pim)
 // move rect within bounds w, h, return whether moved
 bool offsetRect(Rect &r, int ddx, int ddy, int w, int h)
 {
-    ddx = min(w - (r.x + r.width),  max(-r.x, ddx));
+    ddx = min(w - (r.x + r.width), max(-r.x, ddx));
     ddy = min(h - (r.y + r.height), max(-r.y, ddy));
     r += Point(ddx, ddy);
     return ddx != 0 || ddy != 0;
@@ -646,7 +651,7 @@ void imdiff()
 
     /*
     // try to accommodate offset dx, dy by shifting roi in im1
-    Rect roi1 = roi;	
+    Rect roi1 = roi;
     offsetRect(roi1, (int)floor(-dx), (int)floor(-dy), oim1.cols, oim1.rows);
     im1 = oim1(roi1);
     buildPyramid(im1, pyr1, pyrlevels);
@@ -656,54 +661,54 @@ void imdiff()
     float rdx = dx - dd.x - dgx*im0.rows/2; // rotate around center
     float rdy = dy - dd.y;
     float s = 1;
-    //Mat T0 = (Mat_<float>(2,3) << s, 0,  0, 0, s,  0); 
-    Mat T1 = (Mat_<float>(2,3) << s, dgx, rdx, 0, s, rdy); 
+    //Mat T0 = (Mat_<float>(2,3) << s, 0,  0, 0, s,  0);
+    Mat T1 = (Mat_<float>(2,3) << s, dgx, rdx, 0, s, rdy);
     //Mat im0t;
     //warpAffine(im0, im0t, T0, im0.size());
     Mat im1t;
     warpAffine(im1, im1t, T1, im1.size());
     buildPyramid(im1t, pyr1, pyrlevels);
     */
-	
+
     // perform tranformation on the entire image and then 
     // crop the smaller window from the transformed image
     // less efficient, but difference in performance isn't 
     // very noticeable
     Mat wim1T, im1T;
     wim1T = oim1.clone();
-    if(warp_by_gtd && !gtd.empty()){	// if we want to warp by ground truth
+    if (warp_by_gtd && !gtd.empty()) {	// if we want to warp by ground truth
 	wim1T = oim1_gtd_warped.clone();	// use the ground truth warped image
     }
 
-    float s = 1;
+    float s = zoom;
 
-    Mat transform = (Mat_<float>(2,3) << s+dgx, dgy, (dx), 0, s, dy);
+    Mat transform = (Mat_<float>(2, 3) << s * (1 + dgx), dgy, dx, 0, s, dy);
     warpAffine(wim1T, wim1T, transform, oim1.size());
     im1T = wim1T(roi);
     buildPyramid(im1T, pyr1, pyrlevels);
-	
+
     float scale = 1.0;
     for (int i = 0; i <= pyrlevels; i++) {
 	imdiff(pyr0[i], pyr1[i], pyrd[i]);
-	if(!planes.empty() && draw_bounding){
+	if (!planes.empty() && draw_bounding) {
 	    drawBounding(pyrd[i], scale);
 	    scale *= 0.5;
 	}
     }
     //printinfo(pyrd[0]);
     dispPyr(win, pyrd);
-	
+
 }
 
 // Added passing window name through param to get currently selected
 // window, so the user can close the selected window - Matt Stanley 7/14/2015
-static void onMouse( int event, int x, int y, int flags, void *param)
+static void onMouse(int event, int x, int y, int flags, void *param)
 {
     const char* winID = (const char*)param;
-    if(winID == win){
+    if (winID == win) {
 	selectedWin = win;
     }
-    else if (winID == winConf){
+    else if (winID == winConf) {
 	selectedWin = winConf;
 	return;
     }
@@ -755,8 +760,17 @@ static void onMouse( int event, int x, int y, int flags, void *param)
 	if (!cygwinbug)
 	    imdiff();
     }
-}
+    else if (event == CV_EVENT_MOUSEWHEEL) {
+	int delta = CV_GET_WHEEL_DELTA(flags);
+	//printf("wheel %d\n", delta);
+	if (delta > 0)
+	    zoom = 2.0f;
+	else
+	    zoom = 1.0f;
+	imdiff();
+    }
 
+}
 
 void shiftROI(int ddx, int ddy) {
     if (offsetRect(roi, ddx, ddy, oim0.cols, oim0.rows)) {
@@ -769,9 +783,9 @@ void shiftROI(int ddx, int ddy) {
 
 //converts a 3-band image "src" into a single band image stored at "dst"
 //by summing up the values in the three channels
-void sumChannels (Mat src, Mat &dst){
+void sumChannels(Mat src, Mat &dst) {
     //START Creating 1-channel images
-		
+
     //init images to hold summed channels to be 
     //correct width, height and type
     int height = src.size().height;
@@ -782,14 +796,14 @@ void sumChannels (Mat src, Mat &dst){
     //init arrays to hold the 3 images corresponding to each channel
     //of the original
     Mat srcSplit[3];
-		
+
     //split the images into 3 1 channel images
     split(src, srcSplit);
 
     //sum the individual channels up
-    for(int i=0; i < 3; ++i){
+    for (int i = 0; i < 3; ++i) {
 	Mat srcF;
-			
+
 	srcF = srcSplit[i];
 	dst += srcF;
     }
@@ -808,13 +822,13 @@ void computeConf()
     Pyr pyrR, pyrL, pyrConf;
 
     //initialize pyramids to correct size:
-    pyrConf.resize(pyrlevels+1);
-    pyrL.resize(pyrlevels+1);
-    pyrR.resize(pyrlevels+1);
+    pyrConf.resize(pyrlevels + 1);
+    pyrL.resize(pyrlevels + 1);
+    pyrR.resize(pyrlevels + 1);
 
     //create matrices to shift the image by 1 pixshift to the right and left
-    Mat l_shift = (Mat_<float>(2,3) << 1, 0, -pixshift, 0, 1, 0);
-    Mat r_shift = (Mat_<float>(2,3) << 1, 0, pixshift, 0, 1, 0);
+    Mat l_shift = (Mat_<float>(2, 3) << 1, 0, -pixshift, 0, 1, 0);
+    Mat r_shift = (Mat_<float>(2, 3) << 1, 0, pixshift, 0, 1, 0);
 
     for (int i = 0; i <= pyrlevels; i++) {
 
@@ -830,24 +844,24 @@ void computeConf()
 
 	Mat corr_c_image, corr_cm_image, corr_cp_image;
 
-	pyrd[i].convertTo(corr_c_image, CV_32F, 1.0/255);
-	cm_image.convertTo(corr_cm_image, CV_32F, 1.0/255);
-	cp_image.convertTo(corr_cp_image, CV_32F, 1.0/255);
+	pyrd[i].convertTo(corr_c_image, CV_32F, 1.0 / 255);
+	cm_image.convertTo(corr_cm_image, CV_32F, 1.0 / 255);
+	cp_image.convertTo(corr_cp_image, CV_32F, 1.0 / 255);
 
 	//corrected version of matching cost images where 0 indicates perfect match (rather than 128)
-	if(mode == 0){
-	    corr_c_image = abs(corr_c_image - Scalar(0.5,0.5,0.5));
-	    corr_cm_image = abs(corr_cm_image - Scalar(0.5,0.5,0.5));
-	    corr_cp_image = abs(corr_cp_image - Scalar(0.5,0.5,0.5));
+	if (mode == 0) {
+	    corr_c_image = abs(corr_c_image - Scalar(0.5, 0.5, 0.5));
+	    corr_cm_image = abs(corr_cm_image - Scalar(0.5, 0.5, 0.5));
+	    corr_cp_image = abs(corr_cp_image - Scalar(0.5, 0.5, 0.5));
 	}
 	//compute absolute differences for 3 channel image
 	absdiff(corr_c_image, corr_cm_image, cm_diff);
 	absdiff(corr_c_image, corr_cp_image, cp_diff);
 
-	Mat cm_diff_C1, cp_diff_C1, corr_c_image_C1, 
+	Mat cm_diff_C1, cp_diff_C1, corr_c_image_C1,
 	    corr_cm_image_C1, corr_cp_image_C1;
 
-	if (corr_c_image.channels() == 3){ //if working with 3 channel images,
+	if (corr_c_image.channels() == 3) { //if working with 3 channel images,
 	    //convert to 1 channel images
 	    //create 1-channel images:
 	    //init images to hold summed channels
@@ -877,14 +891,14 @@ void computeConf()
 	//at the pixels for which the current disparity is not a local minimum
 	//mask for the L image - 255's where the d image holds the min, 
 	//zeros elsewhere
-	Mat LMask = (mode == 1 || mode == 2) ? 
-	    (corr_c_image_C1 > corr_cm_image_C1):
+	Mat LMask = (mode == 1 || mode == 2) ?
+	    (corr_c_image_C1 > corr_cm_image_C1) :
 	    (corr_c_image_C1 < corr_cm_image_C1);
 	//mask for the R image - 255's where the d image holds the min,
 	//zeros elsewhere 	
-	Mat RMask = (mode == 1 || mode == 2) ? 
-	    (corr_c_image_C1 > corr_cp_image_C1):
-	    (corr_c_image_C1 < corr_cp_image_C1);	
+	Mat RMask = (mode == 1 || mode == 2) ?
+	    (corr_c_image_C1 > corr_cp_image_C1) :
+	    (corr_c_image_C1 < corr_cp_image_C1);
 
 	//scale the values in the masks so that the 255's become 1's
 	LMask /= 255.0;
@@ -896,12 +910,12 @@ void computeConf()
 	//mask out the values where the current disparity was not the minimum
 	//these will now hold zeroes, which will always be the minimum since 
 	//the absdiff is always positive
-	cm_diff_C1 = LMask.mul(cm_diff_C1); 
+	cm_diff_C1 = LMask.mul(cm_diff_C1);
 	cp_diff_C1 = RMask.mul(cp_diff_C1);
 	Mat min_diff = min(cm_diff_C1, cp_diff_C1);
 	min_diff.convertTo(min_diff, CV_8U, 255);
 	pyrConf[i] = min_diff;
-    }	
+    }
     //display the confidence measure in a new window
     Mat im = pyrImg(pyrConf);
     imshow(winConf, im * confScale * 10);
@@ -909,25 +923,25 @@ void computeConf()
 
 //compute confidence using pixel loops rather than 
 //opencv built-in functions
-void computeConfLoop(){
+void computeConfLoop() {
     Pyr pyr_c, pyr_cm, pyr_cp, pyr_conf;
 
     namedWindow(winConf, CV_WINDOW_AUTOSIZE);
     setMouseCallback(winConf, onMouse, (void*)winConf);
 
     //initializing pyramids 
-    pyr_c.resize(pyrlevels+1);
-    pyr_cm.resize(pyrlevels+1);
-    pyr_cp.resize(pyrlevels+1);
-    pyr_conf.resize(pyrlevels+1);
+    pyr_c.resize(pyrlevels + 1);
+    pyr_cm.resize(pyrlevels + 1);
+    pyr_cp.resize(pyrlevels + 1);
+    pyr_conf.resize(pyrlevels + 1);
 
 
     //create matrices to shift the image by 1 pixshift to the right and left
-    Mat l_shift = (Mat_<float>(2,3) << 1, 0, -pixshift, 0, 1, 0);
-    Mat r_shift = (Mat_<float>(2,3) << 1, 0, pixshift, 0, 1, 0);
+    Mat l_shift = (Mat_<float>(2, 3) << 1, 0, -pixshift, 0, 1, 0);
+    Mat r_shift = (Mat_<float>(2, 3) << 1, 0, pixshift, 0, 1, 0);
 
     //loop over each of the images in the pyramid
-    for(int i = 0; i <= pyrlevels; ++i){
+    for (int i = 0; i <= pyrlevels; ++i) {
 
 	//shift the image to the right and left
 	warpAffine(pyr1[i], pyr_cm[i], l_shift, pyr1[i].size());
@@ -943,17 +957,17 @@ void computeConfLoop(){
 	imdiff(pyr0[i], pyr_c[i], c_image);
 
 	//convert all images to be floats in the range 0..1
-	c_image.convertTo(c_image, CV_32FC1, 1/255.0); 
-	cm_image.convertTo(cm_image, CV_32FC1, 1/255.0);
-	cp_image.convertTo(cp_image, CV_32FC1, 1/255.0);
+	c_image.convertTo(c_image, CV_32FC1, 1 / 255.0);
+	cm_image.convertTo(cm_image, CV_32FC1, 1 / 255.0);
+	cp_image.convertTo(cp_image, CV_32FC1, 1 / 255.0);
 
-	if(c_image.channels() == 3){
+	if (c_image.channels() == 3) {
 	    //correct values returned by imdiff so that 0 represents a match,
 	    //rather than 128
 	    c_image = abs(c_image - Scalar(0.5, 0.5, 0.5));
 	    cm_image = abs(cm_image - Scalar(0.5, 0.5, 0.5));
 	    cp_image = abs(cp_image - Scalar(0.5, 0.5, 0.5));
-			
+
 
 	    //convert the 3-channel image to a single channel image 
 	    //by taking the avg of the 3 color channels
@@ -972,7 +986,7 @@ void computeConfLoop(){
 	conf_image = Mat::zeros(height, width, CV_32FC1);
 
 	// begin pixel loop (using one-dimensional loop for speed)
-	for(int pix = 0; pix < (width*height); ++pix){
+	for (int pix = 0; pix < (width*height); ++pix) {
 	    float cm_diff, cp_diff, cm_image_cost, cp_image_cost, c_image_cost;
 
 	    // get the cost at this pixel for each diff image
@@ -983,22 +997,23 @@ void computeConfLoop(){
 	    // if we are using NCC or ICPR we want the middle
 	    // cost to be a max, otherwise a min
 	    int test;
-	    test = (mode==1 || mode==2) ? 
+	    test = (mode == 1 || mode == 2) ?
 
-		((c_image_cost > cp_image_cost) && 
-		 (c_image_cost > cm_image_cost)) :
+		((c_image_cost > cp_image_cost) &&
+		(c_image_cost > cm_image_cost)) :
 
-		((c_image_cost < cp_image_cost) && 
-		 (c_image_cost < cm_image_cost));
+		((c_image_cost < cp_image_cost) &&
+		(c_image_cost < cm_image_cost));
 
-	    if(test){	
+	    if (test) {
 		// if the middle value is a max or min, calculate the 
 		// min abs diff between the two shifted costs and the 
 		// center
 		cm_diff = abs(cm_image_cost - c_image_cost);
 		cp_diff = abs(cp_image_cost - c_image_cost);
 		conf_image.at<float>(pix) = min(cm_diff, cp_diff);
-	    }else{
+	    }
+	    else{
 		// otherwise set the pix to be 0, meaning no confidence
 		conf_image.at<float>(pix) = 0.0;
 	    }
@@ -1011,12 +1026,12 @@ void computeConfLoop(){
     imshow(winConf, im * confScale * 10);
 }
 
-void reset(){
+void reset() {
     dx = 0;  // offset between images
     dy = 0;
     dgx = 0; // disparity gradient
     dgy = 0; // disparity gradient
-    ds = 1; 
+    ds = 1;
     diffscale = 1;
     confScale = 1;
     step = 1;    // arrow key step size
@@ -1037,15 +1052,15 @@ void mainLoop()
 
     while (1) {
 	int c = waitKey(0);
-	switch(c) {
+	switch (c) {
 	case 27: // ESC
 	case 'q':
 	    return;
 	case 7602176: // F5
-	    {
-		//Mat m1 = imd;
-		break;	// can set a breakpoint here, and then use F5 to stop and restart
-	    }
+	{
+	    //Mat m1 = imd;
+	    break;	// can set a breakpoint here, and then use F5 to stop and restart
+	}
 	case 'h':
 	case '?':
 	    printhelp(); break;
@@ -1058,27 +1073,27 @@ void mainLoop()
 	    imdiff();
 	    break;
 	case '=':
-	    if(!planes.empty()){
+	    if (!planes.empty()) {
 		reset();
 		draw_bounding = 1;
-		planeWarp();	
+		planeWarp();
 		imdiff();
 	    }
 	    break;
 	case '<':
-	    if(!planes.empty()){
+	    if (!planes.empty()) {
 		reset();
 		draw_bounding = 1;
-		selected_plane_id = std::max(0, (selected_plane_id-1));
+		selected_plane_id = std::max(0, (selected_plane_id - 1));
 		planeWarp();
 		imdiff();
 	    }
 	    break;
 	case '>':
-	    if(!planes.empty()){
+	    if (!planes.empty()) {
 		reset();
 		draw_bounding = 1;
-		selected_plane_id = std::min((int)(planes.size()-1), (selected_plane_id+1));
+		selected_plane_id = std::min((int)(planes.size() - 1), (selected_plane_id + 1));
 		planeWarp();
 		imdiff();
 	    }
@@ -1088,7 +1103,7 @@ void mainLoop()
 	case 2555904: case 65363: case 63235:// right arrow
 	    dx += step; imdiff(); break;
 	case 2490368: case 65362: case 63232:// up arrow
-	    dy -= step; imdiff(); break; 
+	    dy -= step; imdiff(); break;
 	case 2621440: case 65364: case 63233:// down arrow
 	    dy += step; imdiff(); break;
 	case 'c': // decrease step
@@ -1115,30 +1130,30 @@ void mainLoop()
 	    computeConfLoop(); /*computeConf();*/ break;
 	case 'w':
 	    warp_by_gtd = !warp_by_gtd;
-	    imdiff(); 
+	    imdiff();
 	    break;
 	case 'y':
 	    confScale += 0.10f; imdiff(); break;
 	case 'u':
-	    confScale = max(0.0f, confScale-0.10f); imdiff(); break;
+	    confScale = max(0.0f, confScale - 0.10f); imdiff(); break;
 	case 'z': // decrease contrast
-	    if (mode==0) {diffscale /= 1.5; imdiff();} break;
+	    if (mode == 0) { diffscale /= 1.5; imdiff(); } break;
 	case 'x': // increase contrast
-	    if (mode==0) {diffscale *= 1.5; imdiff();} break;
+	    if (mode == 0) { diffscale *= 1.5; imdiff(); } break;
 	case 'e': // decrease eps
-	    if (mode==1) {ncceps /= 2; imdiff();} break;
+	    if (mode == 1) { ncceps /= 2; imdiff(); } break;
 	case 'r': // increase eps
-	    if (mode==1) {ncceps *= 2; imdiff();} break;
+	    if (mode == 1) { ncceps *= 2; imdiff(); } break;
 	case 'n': // decrease NCC window size
-	    if (mode==1) {nccsize = max(nccsize-2, 3); imdiff();} break;
+	    if (mode == 1) { nccsize = max(nccsize - 2, 3); imdiff(); } break;
 	case 'm': // increase NCC window size
-	    if (mode==1) {nccsize += 2; imdiff();} break;
+	    if (mode == 1) { nccsize += 2; imdiff(); } break;
 	case 'f': // decrease aggregation window size
-	    if (mode>0) {aggrsize = max(aggrsize-2, 1); imdiff();} break;
+	    if (mode > 0) { aggrsize = max(aggrsize - 2, 1); imdiff(); } break;
 	case 'g': // increase aggregation window size
-	    if (mode>0) {aggrsize += 2; imdiff();} break;
+	    if (mode > 0) { aggrsize += 2; imdiff(); } break;
 	case 'b': // toggle clipping negative response
-	    if (mode>0) {diffmin = 128 - diffmin; imdiff();} break;
+	    if (mode > 0) { diffmin = 128 - diffmin; imdiff(); } break;
 	case 'j': // move ROI left
 	    shiftROI(-30, 0); break;
 	case 'l': // move ROI right
@@ -1149,7 +1164,7 @@ void mainLoop()
 	    shiftROI(0, -30); break;
 	case '1': case '2': case '3': case '4':  // change mode
 	case '5': case '6': case '7': case '8': case '9':
-	    mode = min(c - '1', nmodes-1);
+	    mode = min(c - '1', nmodes - 1);
 	    //printf("using mode %s\n", modestr[mode]);
 	    imdiff(); break;
 	case -1: // happens when the user closes the window
@@ -1160,23 +1175,23 @@ void mainLoop()
     }
 }
 
-Mat readIm(const char *fname) 
+Mat readIm(const char *fname)
 {
     Mat im = imread(fname, 1);
-    if (im.empty()) { 
-	fprintf(stderr, "cannot read image %s\n", fname); 
-	exit(1); 
+    if (im.empty()) {
+	fprintf(stderr, "cannot read image %s\n", fname);
+	exit(1);
     }
     return im;
 }
 
-void ensureSameSize(Mat &im0, Mat &im1, bool exitIfDifferent=false) 
+void ensureSameSize(Mat &im0, Mat &im1, bool exitIfDifferent = false)
 {
     if (im0.rows == im1.rows && im0.cols == im1.cols)
 	return;
     if (exitIfDifferent) {
-	fprintf(stderr, "images must have the same size\n"); 
-	exit(1); 
+	fprintf(stderr, "images must have the same size\n");
+	exit(1);
     }
     // otherwise crop to common size
     Rect r(Point(0, 0), im0.size());
@@ -1197,8 +1212,8 @@ int main(int argc, char ** argv)
 
     if (argc < 3) {
 	fprintf(stderr, "usage: %s im1 im2 [%s, %s, %s, %s, %s, %s]\n", argv[0],
-		plane_eqns.c_str(), ground_truth.c_str(), occ_mask.c_str(), 
-		deci_fact.c_str(), off_x.c_str(), off_y.c_str());
+	    plane_eqns.c_str(), ground_truth.c_str(), occ_mask.c_str(),
+	    deci_fact.c_str(), off_x.c_str(), off_y.c_str());
 
 	exit(1);
     }
@@ -1210,52 +1225,61 @@ int main(int argc, char ** argv)
 	int downsample = 1; // use 2 for half-size, etc.
 	int offsx = -1, offsy = -1;
 
-	//parse user input, works like python default parameters
-	for(int i = 3; i < argc; ++i){
-	    string arg = argv[i];
-			
+	string planefile = "";
+	string gtfile = "";
+	string maskfile = "";
 
-	    string match_strings[6] = {	plane_eqns, ground_truth, occ_mask, 
-					deci_fact, off_x, off_y };
-			
-	    for(int s = 0; s < 6; ++s){
-		string match_string = match_strings[s];
-		std::size_t found = arg.find(match_string);
-		if(found != std::string::npos){
-		    if(match_string == plane_eqns){
-			readPlanesFromFile(arg.substr(found+plane_eqns.size()));
-		    }else if(match_string == ground_truth){
-			ReadFilePFM(gtd, arg.substr(found+ground_truth.size()));
-			warpByGT(oim1, oim1_gtd_warped, gtd, occmask);
-		    }else if(match_string == occ_mask){
-			occmask = readIm(arg.substr(found+occ_mask.size()).c_str());
-		    }else if(match_string == deci_fact){
-			downsample = atoi(arg.substr(found+deci_fact.size()).c_str());
-		    }else if(match_string == off_x){
-			offsx = atoi(arg.substr(found+off_x.size()).c_str());
-		    }else if(match_string == off_y){
-			offsy = atoi(arg.substr(found+off_y.size()).c_str());
-		    }
-		}
-	    }
+	//parse user input, works like python default parameters
+	for (int i = 3; i < argc; ++i) {
+	    string arg = argv[i];
+	    std::size_t found;
+	    if ((found = arg.find(plane_eqns)) != std::string::npos)
+		planefile = arg.substr(found + plane_eqns.size());
+	    else if ((found = arg.find(ground_truth)) != std::string::npos)
+		gtfile = arg.substr(found + ground_truth.size());
+	    else if ((found = arg.find(occ_mask)) != std::string::npos)
+		maskfile = arg.substr(found + occ_mask.size());
+	    else if ((found = arg.find(deci_fact)) != std::string::npos)
+		downsample = atoi(arg.substr(found + deci_fact.size()).c_str());
+	    else if ((found = arg.find(off_x)) != std::string::npos)
+		offsx = atoi(arg.substr(found + off_x.size()).c_str());
+	    else if ((found = arg.find(off_y)) != std::string::npos)
+		offsy = atoi(arg.substr(found + off_y.size()).c_str());
 	}
+
+	if (planefile != "") {
+	    readPlanesFromFile(planefile, downsample);
+	}
+	if (maskfile != "") {
+	    occmask = readIm(maskfile.c_str());
+	}
+	if (gtfile != "") {
+	    ReadFilePFM(gtd, gtfile);
+	    warpByGT(oim1, oim1_gtd_warped, gtd, occmask);
+	}
+
 
 	// downsample images
 	if (downsample > 1) {
-	    double f = 1.0/downsample;
+	    double f = 1.0 / downsample;
 	    resize(oim0, oim0, Size(), f, f, INTER_AREA);
 	    resize(oim1, oim1, Size(), f, f, INTER_AREA);
+	    if (!occmask.empty())
+		resize(occmask, occmask, Size(), f, f, INTER_NEAREST);	    
+	    if (!oim1_gtd_warped.empty())
+		resize(oim1_gtd_warped, oim1_gtd_warped, Size(), f, f, INTER_AREA);
 	}
 
 	// crop region in images if too big
 	int maxw = 600;
 	if (oim0.cols > maxw) { // crop subregion
 	    int w = maxw, h = min(oim0.rows, maxw);
-	    offsx = (offsx < 0) ? (oim0.cols - w)/2 : max(0, min(oim0.cols - w - 1, offsx));
-	    offsy = (offsy < 0) ? (oim0.rows - h)/2 : max(0, min(oim0.rows - h - 1, offsy));
+	    offsx = (offsx < 0) ? (oim0.cols - w) / 2 : max(0, min(oim0.cols - w - 1, offsx));
+	    offsy = (offsy < 0) ? (oim0.rows - h) / 2 : max(0, min(oim0.rows - h - 1, offsy));
 	    roi = Rect(offsx, offsy, w, h);
 	    printf("cropping region %dx%d +%d +%d\n", w, h, offsx, offsy);
-	} else {
+	}
+	else {
 	    roi = Rect(0, 0, oim0.cols, oim0.rows);
 	}
 	im0 = oim0(roi);
@@ -1263,7 +1287,7 @@ int main(int argc, char ** argv)
 
 	// determine number of levels in the pyramid
 	int smallestpyr = 20; // size of smallest pyramid image
-	int minsize = min(im0.rows, im0.cols)/2;
+	int minsize = min(im0.rows, im0.cols) / 2;
 	pyrlevels = 0;
 	while (minsize >= smallestpyr) {
 	    minsize /= 2;
@@ -1272,7 +1296,7 @@ int main(int argc, char ** argv)
 
 	buildPyramid(im0, pyr0, pyrlevels);
 	buildPyramid(im1, pyr1, pyrlevels);
-	pyrd.resize(pyrlevels+1);
+	pyrd.resize(pyrlevels + 1);
 	//Mat im = pyr0[pyrlevels];
 	//printf("%d levels, smallest size = %d x %d\n", pyrlevels, im.cols, im.rows);
 
